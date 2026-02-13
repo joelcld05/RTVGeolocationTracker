@@ -1,4 +1,9 @@
-import type { GpsTopic, MessageMeta, NormalizedEvent } from "../types";
+import type {
+  GpsTopic,
+  MessageMeta,
+  NormalizedEvent,
+  RouteProjectionResult,
+} from "../types";
 import { parseGpsPayload, validateGps } from "./gps";
 
 type GpsHandlerOptions = {
@@ -7,7 +12,7 @@ type GpsHandlerOptions = {
     direction: string,
     lat: number,
     lng: number,
-  ) => Promise<number>;
+  ) => Promise<RouteProjectionResult>;
   storeMessage: (
     busId: string,
     topic: string,
@@ -28,7 +33,7 @@ export function createGpsHandler(options: GpsHandlerOptions) {
 
     validateGps(gps);
 
-    const progress = await options.projectToRoute(
+    const projection = await options.projectToRoute(
       topic.routeId,
       topic.direction,
       gps.lat,
@@ -41,9 +46,13 @@ export function createGpsHandler(options: GpsHandlerOptions) {
       direction: topic.direction,
       lat: gps.lat,
       lng: gps.lng,
-      progress,
+      progress: projection.progress,
+      deviationMeters: projection.deviationMeters,
       speed: gps.speed,
       timestamp: gps.timestamp,
+      isOffTrack: false,
+      tripStatus: "IN_ROUTE",
+      arrivalTimestamp: null,
     };
 
     await options.onEvent(event);

@@ -83,7 +83,7 @@ Audit status updated from current codebase on `2026-02-13`:
 - [x] Implement backend -> KeyDB route sync:
   - [x] Write `route:shape:{routeId}:{direction}` for each active route.
   - [x] Write `route:length:{routeId}:{direction}` in meters.
-  - [ ] Write `route:endzone:{routeId}:{direction}` for each active route-direction.
+  - [x] Write `route:endzone:{routeId}:{direction}` for each active route-direction.
   - [x] Refresh/update keys when route geometry changes.
 
 ## 5. Build MQTT Ingestion Service

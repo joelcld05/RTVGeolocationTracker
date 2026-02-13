@@ -23,7 +23,11 @@ type BusState = {
   lat: number;
   lng: number;
   progress: number;
+  deviationMeters: number | null;
   speed: number;
+  isOffTrack: boolean;
+  tripStatus: "IN_ROUTE" | "ARRIVED";
+  arrivalTimestamp: number | null;
   timestamp: number;
 };
 
@@ -48,7 +52,11 @@ type BusPayload = {
   position: { lat: number; lng: number };
   progress: number;
   distanceMeters: number | null;
+  deviationMeters: number | null;
   speed: number;
+  isOffTrack: boolean;
+  tripStatus: "IN_ROUTE" | "ARRIVED";
+  arrivalTimestamp: number | null;
   neighbors: NeighborResult;
   timestamp: number;
 };
@@ -61,7 +69,11 @@ type RoutePayload = {
   lng: number;
   progress: number;
   distanceMeters: number | null;
+  deviationMeters: number | null;
   speed: number;
+  isOffTrack: boolean;
+  tripStatus: "IN_ROUTE" | "ARRIVED";
+  arrivalTimestamp: number | null;
   ahead: NeighborDetail[];
   behind: NeighborDetail[];
   timestamp: number;
@@ -156,6 +168,17 @@ const channelSubscriptions = new Map<string, Set<WebSocket>>();
 
 function isValidId(value: string): boolean {
   return idPattern.test(value);
+}
+
+function parseOptionalNumber(raw: string | undefined): number | null {
+  if (!raw || raw === "null") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseBoolean(raw: string | undefined): boolean {
+  if (!raw) return false;
+  return raw === "1" || raw.toLowerCase() === "true";
 }
 
 function parseChannel(channel: string): ChannelInfo | null {
@@ -341,7 +364,11 @@ async function getBusState(busId: string): Promise<BusState | null> {
   const lat = Number(data.lat);
   const lng = Number(data.lng);
   const progress = Number(data.progress);
+  const deviationMeters = parseOptionalNumber(data.deviationMeters);
   const speed = Number(data.speed);
+  const isOffTrack = parseBoolean(data.isOffTrack);
+  const tripStatus = data.tripStatus === "ARRIVED" ? "ARRIVED" : "IN_ROUTE";
+  const arrivalTimestamp = parseOptionalNumber(data.arrivalTimestamp);
   const timestamp = Number(data.timestamp);
   const routeId = data.routeId;
   const direction = data.direction?.toUpperCase();
@@ -362,7 +389,11 @@ async function getBusState(busId: string): Promise<BusState | null> {
     lat,
     lng,
     progress,
+    deviationMeters,
     speed,
+    isOffTrack,
+    tripStatus,
+    arrivalTimestamp,
     timestamp,
   };
 }
@@ -460,7 +491,11 @@ function buildBusPayload(
     },
     progress: state.progress,
     distanceMeters,
+    deviationMeters: state.deviationMeters,
     speed: state.speed,
+    isOffTrack: state.isOffTrack,
+    tripStatus: state.tripStatus,
+    arrivalTimestamp: state.arrivalTimestamp,
     neighbors,
     timestamp: state.timestamp,
   };
@@ -479,7 +514,11 @@ function buildRoutePayload(
     lng: state.lng,
     progress: state.progress,
     distanceMeters,
+    deviationMeters: state.deviationMeters,
     speed: state.speed,
+    isOffTrack: state.isOffTrack,
+    tripStatus: state.tripStatus,
+    arrivalTimestamp: state.arrivalTimestamp,
     ahead: neighbors.ahead,
     behind: neighbors.behind,
     timestamp: state.timestamp,

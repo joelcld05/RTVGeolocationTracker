@@ -79,7 +79,11 @@ Bus channel payload:
   "position": { "lat": 8.9824, "lng": -79.5199 },
   "progress": 0.52,
   "distanceMeters": 8421.44,
+  "deviationMeters": 6.3,
   "speed": 54,
+  "isOffTrack": false,
+  "tripStatus": "IN_ROUTE",
+  "arrivalTimestamp": null,
   "neighbors": {
     "ahead": [{ "busId": "BUS_732", "distanceMeters": 300, "etaSeconds": 20 }],
     "behind": [{ "busId": "BUS_210", "distanceMeters": 240, "etaSeconds": 16 }]
@@ -101,7 +105,11 @@ Route channel payload:
   "lng": -79.5199,
   "progress": 0.52,
   "distanceMeters": 8421.44,
+  "deviationMeters": 6.3,
   "speed": 54,
+  "isOffTrack": false,
+  "tripStatus": "IN_ROUTE",
+  "arrivalTimestamp": null,
   "ahead": [{ "busId": "BUS_732", "distanceMeters": 300, "etaSeconds": 20 }],
   "behind": [{ "busId": "BUS_210", "distanceMeters": 240, "etaSeconds": 16 }],
   "timestamp": 1706184200000

@@ -6,6 +6,8 @@ export type GpsPayload = {
   timestamp: number;
 };
 
+export type TripStatus = "IN_ROUTE" | "ARRIVED";
+
 export type NormalizedEvent = {
   busId: string;
   routeId: string;
@@ -13,8 +15,17 @@ export type NormalizedEvent = {
   lat: number;
   lng: number;
   progress: number;
+  deviationMeters: number | null;
   speed: number;
   timestamp: number;
+  isOffTrack: boolean;
+  tripStatus: TripStatus;
+  arrivalTimestamp: number | null;
+};
+
+export type RouteProjectionResult = {
+  progress: number;
+  deviationMeters: number | null;
 };
 
 export type GpsTopic = {

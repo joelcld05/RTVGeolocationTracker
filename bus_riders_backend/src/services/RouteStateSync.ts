@@ -47,21 +47,66 @@ function toLatLngPoints(
   }
 
   return coordinates
-    .map((entry) => {
-      if (!Array.isArray(entry) || entry.length < 2) {
-        return null;
-      }
-
-      // GeoJSON linestring order is [lng, lat]
-      const lng = Number(entry[0]);
-      const lat = Number(entry[1]);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return null;
-      }
-
-      return { lat, lng };
-    })
+    .map((entry) => toLatLngPoint(entry))
     .filter((point): point is { lat: number; lng: number } => point !== null);
+}
+
+function toLatLngPoint(entry: unknown): LatLngPoint | null {
+  if (!Array.isArray(entry) || entry.length < 2) {
+    return null;
+  }
+
+  // GeoJSON order is [lng, lat]
+  const lng = Number(entry[0]);
+  const lat = Number(entry[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+
+  return { lat, lng };
+}
+
+function getEndzonePolygonPoints(endPointCoordinates: unknown): LatLngPoint[] {
+  if (!Array.isArray(endPointCoordinates)) {
+    return [];
+  }
+
+  const points = endPointCoordinates
+    .map((entry) => toLatLngPoint(entry))
+    .filter((point): point is LatLngPoint => point !== null);
+
+  // If three or more points are provided, treat as explicit polygon.
+  if (points.length >= 3) {
+    return points;
+  }
+
+  return [];
+}
+
+function buildCircularPolygon(
+  center: LatLngPoint,
+  radiusMeters: number,
+  sides = 12,
+): LatLngPoint[] {
+  const safeSides = Math.max(6, Math.min(64, sides));
+  const radius = Math.max(5, radiusMeters);
+  const latRad = toRadians(center.lat);
+  const metersPerDegLat = 111_320;
+  const metersPerDegLng = Math.max(1, 111_320 * Math.cos(latRad));
+
+  const points: LatLngPoint[] = [];
+  for (let i = 0; i < safeSides; i += 1) {
+    const angle = (2 * Math.PI * i) / safeSides;
+    const dx = Math.cos(angle) * radius;
+    const dy = Math.sin(angle) * radius;
+
+    points.push({
+      lat: center.lat + dy / metersPerDegLat,
+      lng: center.lng + dx / metersPerDegLng,
+    });
+  }
+
+  return points;
 }
 
 function getRouteLengthMeters(points: LatLngPoint[]): number {
@@ -84,6 +129,7 @@ class RouteStateSyncService {
   #intervalMs: number;
   #keydbUrl: string;
   #clientName: string;
+  #endzoneRadiusMeters: number;
 
   constructor() {
     this.#enabled =
@@ -95,6 +141,9 @@ class RouteStateSyncService {
     this.#keydbUrl = process.env.KEYDB_URL ?? "redis://localhost:6379";
     this.#clientName =
       process.env.ROUTE_SYNC_KEYDB_CLIENT_NAME ?? "bus_riders_backend:routes";
+    this.#endzoneRadiusMeters = Number.parseFloat(
+      process.env.ROUTE_ENDZONE_RADIUS_METERS ?? "40",
+    );
   }
 
   async start(): Promise<void> {
@@ -175,6 +224,7 @@ class RouteStateSyncService {
       const pipeline = this.#keydb.multi();
 
       let synced = 0;
+      let endzonesSynced = 0;
 
       for (const route of routes) {
         const routeId = String(route?._id ?? "").trim();
@@ -196,9 +246,31 @@ class RouteStateSyncService {
 
         const shapeKey = `route:shape:${routeId}:${direction}`;
         const lengthKey = `route:length:${routeId}:${direction}`;
+        const endzoneKey = `route:endzone:${routeId}:${direction}`;
 
         pipeline.set(shapeKey, JSON.stringify(points));
         pipeline.set(lengthKey, String(lengthMeters));
+
+        const explicitEndzone = getEndzonePolygonPoints(
+          (route as any)?.end_point?.coordinates,
+        );
+        if (explicitEndzone.length >= 3) {
+          pipeline.set(endzoneKey, JSON.stringify(explicitEndzone));
+          endzonesSynced += 1;
+        } else {
+          const terminalPoint = points[points.length - 1];
+          if (terminalPoint) {
+            const generatedEndzone = buildCircularPolygon(
+              terminalPoint,
+              this.#endzoneRadiusMeters,
+            );
+            pipeline.set(endzoneKey, JSON.stringify(generatedEndzone));
+            endzonesSynced += 1;
+          } else {
+            pipeline.del(endzoneKey);
+          }
+        }
+
         activeRouteKeys.add(`${routeId}:${direction}`);
         synced += 1;
       }
@@ -216,6 +288,7 @@ class RouteStateSyncService {
 
         pipeline.del(`route:shape:${routeId}:${direction}`);
         pipeline.del(`route:length:${routeId}:${direction}`);
+        pipeline.del(`route:endzone:${routeId}:${direction}`);
       }
 
       pipeline.del(ROUTE_SHAPE_INDEX_KEY);
@@ -226,6 +299,7 @@ class RouteStateSyncService {
       await pipeline.exec();
       console.log("[route-sync] synced", {
         routes: synced,
+        endzones: endzonesSynced,
         removed: Math.max(0, existingRouteKeys.length - activeRouteKeys.size),
       });
     } catch (error) {

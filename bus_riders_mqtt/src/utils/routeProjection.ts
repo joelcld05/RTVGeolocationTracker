@@ -1,5 +1,5 @@
 import type Redis from "ioredis";
-import type { RouteShape } from "../types";
+import type { RouteProjectionResult, RouteShape } from "../types";
 import { isFiniteNumber } from "./numbers";
 
 type RouteProjectionService = {
@@ -8,7 +8,7 @@ type RouteProjectionService = {
     direction: string,
     lat: number,
     lng: number,
-  ) => Promise<number>;
+  ) => Promise<RouteProjectionResult>;
   getRouteLengthMeters: (
     routeId: string,
     direction: string,
@@ -127,9 +127,11 @@ export function createRouteProjectionService(
     direction: string,
     lat: number,
     lng: number,
-  ): Promise<number> {
+  ): Promise<RouteProjectionResult> {
     const shape = await loadRouteShape(routeId, direction);
-    if (!shape || shape.totalLengthMeters <= 0) return 0;
+    if (!shape || shape.totalLengthMeters <= 0) {
+      return { progress: 0, deviationMeters: null };
+    }
 
     let closestDistance = Number.POSITIVE_INFINITY;
     let closestProgress = 0;
@@ -169,8 +171,16 @@ export function createRouteProjectionService(
       }
     }
 
-    if (!Number.isFinite(closestProgress)) return 0;
-    return Math.max(0, Math.min(1, closestProgress));
+    if (!Number.isFinite(closestProgress)) {
+      return { progress: 0, deviationMeters: null };
+    }
+
+    return {
+      progress: Math.max(0, Math.min(1, closestProgress)),
+      deviationMeters: Number.isFinite(closestDistance)
+        ? closestDistance
+        : null,
+    };
   }
 
   async function getRouteLengthMeters(

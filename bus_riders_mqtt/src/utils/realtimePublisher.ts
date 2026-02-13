@@ -35,10 +35,19 @@ export function createRealtimePublisher(
 
     const payload = {
       busId: event.busId,
+      routeId: event.routeId,
+      direction: event.direction,
       position: {
         lat: event.lat,
         lng: event.lng,
       },
+      progress: event.progress,
+      deviationMeters: event.deviationMeters,
+      speed: event.speed,
+      isOffTrack: event.isOffTrack,
+      tripStatus: event.tripStatus,
+      arrivalTimestamp: event.arrivalTimestamp,
+      timestamp: event.timestamp,
       neighbors: {
         ahead,
         behind,

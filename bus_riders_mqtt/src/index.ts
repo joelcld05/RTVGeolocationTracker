@@ -62,6 +62,29 @@ const routeCacheTtlMs = Number.parseInt(
   process.env.ROUTE_CACHE_TTL_MS ?? "300000",
   10,
 );
+const offTrackDistanceThresholdMeters = Number.parseFloat(
+  process.env.OFFTRACK_DISTANCE_THRESHOLD_METERS ?? "50",
+);
+const offTrackRecoveryThresholdMeters = Number.parseFloat(
+  process.env.OFFTRACK_RECOVERY_THRESHOLD_METERS ?? "35",
+);
+const arrivalProgressThreshold = Number.parseFloat(
+  process.env.ARRIVAL_PROGRESS_THRESHOLD ?? "0.97",
+);
+const arrivalDwellMs = Number.parseInt(
+  process.env.ARRIVAL_DWELL_MS ?? "10000",
+  10,
+);
+const arrivalMaxSpeedKmh = Number.parseFloat(
+  process.env.ARRIVAL_MAX_SPEED_KMH ?? "8",
+);
+const arrivalResetProgressThreshold = Number.parseFloat(
+  process.env.ARRIVAL_RESET_PROGRESS_THRESHOLD ?? "0.2",
+);
+const arrivalExitGraceMs = Number.parseInt(
+  process.env.ARRIVAL_EXIT_GRACE_MS ?? "10000",
+  10,
+);
 const resolvedMqttUsername = mqttUsername || mqttClientId;
 
 function buildServiceJwtToken(): string | null {
@@ -119,6 +142,38 @@ const { storeMessage, updateBusState } = createStateService({
   messageHistoryLimit,
   messageTtlSeconds,
   busStateTtlSeconds,
+  routeCacheTtlMs,
+  statusRules: {
+    offTrackDistanceThresholdMeters: Number.isFinite(
+      offTrackDistanceThresholdMeters,
+    )
+      ? offTrackDistanceThresholdMeters
+      : 50,
+    offTrackRecoveryThresholdMeters: Number.isFinite(
+      offTrackRecoveryThresholdMeters,
+    )
+      ? offTrackRecoveryThresholdMeters
+      : 35,
+    arrivalProgressThreshold: Number.isFinite(arrivalProgressThreshold)
+      ? arrivalProgressThreshold
+      : 0.97,
+    arrivalDwellMs:
+      Number.isFinite(arrivalDwellMs) && arrivalDwellMs > 0
+        ? arrivalDwellMs
+        : 10000,
+    arrivalMaxSpeedKmh: Number.isFinite(arrivalMaxSpeedKmh)
+      ? arrivalMaxSpeedKmh
+      : 8,
+    arrivalResetProgressThreshold: Number.isFinite(
+      arrivalResetProgressThreshold,
+    )
+      ? arrivalResetProgressThreshold
+      : 0.2,
+    arrivalExitGraceMs:
+      Number.isFinite(arrivalExitGraceMs) && arrivalExitGraceMs >= 0
+        ? arrivalExitGraceMs
+        : 10000,
+  },
 });
 
 const { findNeighbors, buildNeighborDetails } = createNeighborService({
@@ -141,12 +196,16 @@ const handleGpsMessage = createGpsHandler({
 });
 
 eventBus.on("normalized", (event: NormalizedEvent) => {
-  void updateBusState(event).catch((error) => {
-    console.warn("[keydb] failed to update bus state", error);
-  });
-
-  void pushRealtimeUpdate(event).catch((error) => {
-    console.warn("[realtime] failed to push update", error);
+  void (async () => {
+    const enrichedEvent = await updateBusState(event);
+    await pushRealtimeUpdate(enrichedEvent);
+  })().catch((error) => {
+    console.warn("[realtime] failed to process normalized event", {
+      busId: event.busId,
+      routeId: event.routeId,
+      direction: event.direction,
+      error,
+    });
   });
 });
 
