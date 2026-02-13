@@ -1,0 +1,36 @@
+{
+  "ts-node": {
+    "require": ["tsconfig-paths/register"],
+    "swc": true
+  },
+  "tsc-alias": {
+    "verbose": true,
+    "resolveFullPaths": true
+  },
+  "compilerOptions": {
+    "strictPropertyInitialization": false,
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "moduleResolution": "node",
+    "types": ["node", "jest"],
+    "module": "commonjs",
+    "rootDir": "./src",
+    "target": "ES2022",
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@test/*": ["src/test/*"]
+    }
+  },
+  "include": ["src", "__test__", "customeScript", "src/test/app.test.ts"],
+  "exclude": ["dist", "node_modules", "**/*/__test__"]
+}

@@ -1,0 +1,19 @@
+# Exclude Git and editor files
+.git/
+.gitignore
+.vscode/
+
+# Exclude local dependencies (if installed in container)
+node_modules/
+
+# Exclude logs and temporary files
+*.log
+tmp/
+
+# Exclude build artifacts
+dist/
+build/
+
+# Exclude environment files (but keep a default one)
+.env
+!default.env

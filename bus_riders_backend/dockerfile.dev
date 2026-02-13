@@ -1,0 +1,17 @@
+# ---- Base Node ----
+FROM node:20-alpine
+RUN mkdir -p /home/node/app && chown -R node:node /home/node/app
+WORKDIR /home/node/app 
+RUN apk add --no-cache libreoffice-writer
+RUN apk add --no-cache openjdk8-jre
+RUN apk add --no-cache git
+COPY package.json . 
+RUN npm i -g dotenv-cli
+RUN npm install
+COPY . . 
+EXPOSE 8080
+# RUN rm -r ./src
+# RUN npm prune --production
+CMD npm run dev
+# RUN npm i -g dotenv-cli
+# CMD npm run dev

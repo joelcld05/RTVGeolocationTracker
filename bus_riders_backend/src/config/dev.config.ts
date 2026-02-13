@@ -1,0 +1,20 @@
+export default {
+  cors: {
+    origin: ["http://169.254.94.163:8080"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "DELETE", "PUT", "PATCH"],
+  },
+  limits: {
+    windowMs: 15 * 60 * 1000,
+    max: 100000,
+    standardHeaders: true,
+    legacyHeaders: false,
+  },
+  security: {
+    recapcha_key: "6LfTG38kAAAAANc01i_17paSP-UnbRb5q5_aSoD_",
+    recapcha_site: "6LfTG38kAAAAAO9cpwx9JeJmJmdOsgb93dMoWR_k",
+  },
+  cache: {
+    time: "1440 minute",
+  },
+};

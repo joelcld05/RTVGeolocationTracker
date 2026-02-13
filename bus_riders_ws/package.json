@@ -1,0 +1,26 @@
+{
+  "name": "bus_riders_ws",
+  "version": "1.0.0",
+  "description": "WebSocket server for bus realtime updates",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ioredis": "^5.7.1",
+    "jsonwebtoken": "^9.0.3",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^18.19.0",
+    "@types/ws": "^8.5.13",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

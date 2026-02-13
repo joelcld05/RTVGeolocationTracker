@@ -1,0 +1,95 @@
+services:
+  keydb:
+    image: eqalpha/keydb:latest
+    container_name: keydb_server
+    command: >
+      keydb-server
+      --protected-mode no
+      --appendonly yes
+      --save 60 1000
+    ports:
+      - "6379:6379"
+    volumes:
+      - keydb-data:/data
+    restart: unless-stopped
+    networks:
+      - rtv_net
+  emqx:
+    image: emqx/emqx:5.5.0
+    container_name: emqx_server
+    restart: unless-stopped
+
+    ports:
+      # MQTT
+      - "1883:1883"     # MQTT (no TLS – dev only)
+      - "8883:8883"     # MQTT over TLS
+      - "8083:8083"     # MQTT over WebSocket
+      - "8084:8084"     # MQTT over WebSocket (TLS)
+      - "18083:18083"
+
+    environment:
+      # Cluster / Node
+      EMQX_NODE_NAME: emqx@emqx
+      EMQX_CLUSTER__DISCOVERY_STRATEGY: static
+      EMQX_CLUSTER__STATIC__SEEDS: emqx@emqx
+
+      # Allow anonymous (TURN OFF IN PROD)
+      EMQX_ALLOW_ANONYMOUS: "false"
+
+      # Dashboard default credentials
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: admin
+
+      # Listener configuration
+      EMQX_LISTENERS__TCP__DEFAULT__BIND: 0.0.0.0:1883
+      EMQX_LISTENERS__SSL__DEFAULT__BIND: 0.0.0.0:8883
+      EMQX_LISTENERS__WS__DEFAULT__BIND: 0.0.0.0:8083
+      EMQX_LISTENERS__WSS__DEFAULT__BIND: 0.0.0.0:8084
+
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+    networks:
+      - rtv_net
+  mqtt:
+    build:
+      context: ./bus_riders_mqtt
+    container_name: mqtt_client
+    env_file:
+      - ./bus_riders_mqtt/.env
+    depends_on:
+      - emqx
+      - keydb
+    networks:
+      - rtv_net
+  ws:
+    build:
+      context: ./bus_riders_ws
+    container_name: ws_client
+    ports:
+      - 8081:8081
+    env_file:
+      - ./bus_riders_ws/.env
+    depends_on:
+      - emqx
+      - keydb
+    networks:
+      - rtv_net
+  # backend:
+  #   image: api_backend
+  #   build:
+  #     context: ./bus_riders_backend
+  #   ports:
+  #     - 8080:8080
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   env_file:
+  #     - ./bus_riders_backend/.env
+volumes:
+  keydb-data:
+  emqx_data:
+  emqx_log:
+
+networks:
+  rtv_net:
+    driver: bridge

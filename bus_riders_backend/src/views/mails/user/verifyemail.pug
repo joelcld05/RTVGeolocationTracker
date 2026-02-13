@@ -1,0 +1,20 @@
+extends ../layout
+
+block vars
+  - var mailTitle = 'Crowmie | Verifica tu correo'
+
+block content
+  - const verifyUrl = 'https://app.crowmie.com/confirm?token=' + token
+  h1.mail-heading Verifica tu correo electr&oacute;nico
+  p.mail-text Gracias por introducir tus datos.
+  p.mail-text
+    | Antes de continuar con tu proceso de inversi&oacute;n, necesitamos que verifiques tu correo electr&oacute;nico para activar tu cuenta de inversor en la plataforma.
+  p.mail-text
+    | Toca este bot&oacute;n para validar tu cuenta:
+  .mail-button
+    a.mail-btn(href=verifyUrl target='_blank' rel='noopener noreferrer') Verificar correo electr&oacute;nico
+  p.mail-text
+    | Una vez verificado, podr&aacute;s acceder a tu dashboard, completar tu perfil y empezar a invertir en infraestructura energ&eacute;tica con Crowmie.
+  p.mail-text
+    | Est&aacute;s muy cerca de formar parte de nuestro club de inversi&oacute;n en energ&iacute;a.
+  p.mail-text &iexcl;Estamos muy ilusionados de tenerte aqu&iacute;!

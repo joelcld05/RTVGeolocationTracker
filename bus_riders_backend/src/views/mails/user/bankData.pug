@@ -1,0 +1,17 @@
+extends ../layout
+
+block vars
+  - var mailTitle = 'Crowmie | Cambio de datos bancarios'
+
+block content
+  h1.mail-heading Cambio de datos bancarios
+  p.mail-text
+    | Te confirmamos que los cambios en tus datos bancarios se han realizado y guardado correctamente en tu cuenta de Crowmie.
+  p.mail-text
+    | A partir de ahora, utilizaremos estos datos para gestionar tus cobros y posibles retiradas de fondos.
+  p.mail-text Puedes acceder a tu cuenta y revisarlos desde aqu&iacute;:
+  .mail-button
+    a.mail-btn(href='https://app.crowmie.com/' target='_blank' rel='noopener noreferrer') Ir a mi cuenta
+  p.mail-text &iquest;No has sido t&uacute;?&nbsp;
+  p.mail-text
+    | Si no recuerdas haber realizado este cambio o crees que se ha hecho por error, te recomendamos no usar el enlace, revisar cuanto antes tu cuenta y ponerte en contacto con nosotros inmediatamente.

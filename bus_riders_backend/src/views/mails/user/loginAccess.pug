@@ -1,0 +1,13 @@
+extends ../layout
+
+block vars
+  - var mailTitle = 'Crowmie | Inicio de sesi&oacute;n registrado'
+
+block content
+  h1.mail-heading Inicio de sesi&oacute;n registrado
+  p.mail-text
+    | Detectamos un nuevo inicio de sesi&oacute;n en tu cuenta de Crowmie.
+  p.mail-text
+    | Si fuiste t&uacute;, no necesitas hacer nada m&aacute;s. En caso contrario cambia tu contrase&ntilde;a y cont&aacute;ctanos para proteger tu cuenta.
+  .mail-button
+    a.mail-btn(href='https://app.crowmie.com/' target='_blank' rel='noopener noreferrer') Ir a mi cuenta

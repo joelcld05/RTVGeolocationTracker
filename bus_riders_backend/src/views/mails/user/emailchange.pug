@@ -1,0 +1,16 @@
+extends ../layout
+
+block vars
+  - var mailTitle = 'Crowmie | Confirmar cambio de correo'
+
+block content
+  - const changeUrl = 'https://app.crowmie.com/change/email/' + token
+  h1.mail-heading Confirma tu nuevo correo
+  p.mail-text
+    | Has solicitado cambiar el correo electr&oacute;nico asociado a tu cuenta en Crowmie.
+  p.mail-text
+    | Para completar el cambio y mantener tu cuenta segura, valida tu nuevo correo desde este bot&oacute;n:
+  .mail-button
+    a.mail-btn(href=changeUrl target='_blank' rel='noopener noreferrer') Confirmar nuevo correo
+  p.mail-text
+    | Si no solicitaste este cambio, no uses el enlace y cont&aacute;ctanos de inmediato para proteger tu cuenta.

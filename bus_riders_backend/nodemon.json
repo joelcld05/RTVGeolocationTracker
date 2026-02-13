@@ -1,0 +1,7 @@
+{
+  "watch": ["./src/**/*.ts"],
+  "ignore": ["./src/**/*.spec.ts", "__test__", "node_modules", ".git"],
+  "ext": "ts json",
+  "trace-warnings": true,
+  "exec": "ts-node ./src/app.ts"
+}

@@ -1,0 +1,19 @@
+extends ../layout
+
+block vars
+  - var mailTitle = 'Crowmie | Actualiza tu KYC'
+
+block content
+  h1.mail-heading Revisa tu verificaci&oacute;n
+  p.mail-text
+    | Durante la revisi&oacute;n de los datos que has proporcionado para validar tu cuenta, hemos detectado alguna incidencia en la informaci&oacute;n enviada.
+  p.mail-text
+    | Es posible que alg&uacute;n dato personal no coincida con la documentaci&oacute;n aportada, o que alguno de los documentos subidos no sea v&aacute;lido o est&eacute; incompleto.
+  p.mail-text
+    | Para ayudarte a corregirlo, hemos generado un aviso en tu &aacute;rea personal de la plataforma con el detalle de los cambios necesarios para poder completar la verificaci&oacute;n de tu cuenta (KYC).
+  p.mail-text
+    | Puedes acceder a tu cuenta y realizar las correcciones desde aqu&iacute;:
+  .mail-button
+    a.mail-btn(href='https://app.crowmie.com/' target='_blank' rel='noopener noreferrer') Ir a mi cuenta
+  p.mail-text
+    | En cuanto actualices la informaci&oacute;n, volveremos a revisar tu caso para validar tu perfil y que puedas seguir invirtiendo con total normalidad.

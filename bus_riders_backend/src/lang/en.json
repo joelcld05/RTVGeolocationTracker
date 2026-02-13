@@ -1,0 +1,31 @@
+{
+  "views": {
+    "statement": {
+      "title": "Account Statement",
+      "created": "Fecha de expedición",
+      "date": "Fecha",
+      "amount": "Cantidad",
+      "concept": "Concepto",
+      "reference": "Referencia",
+      "invested": "Total Invertido",
+      "balance": "Saldo actual",
+      "titular": "Titular",
+      "investments": "Empresa",
+      "newbalance": "Balance",
+      "account": "Cuenta"
+    },
+    "investment_confirm": {
+      "title": "CONFIRMACIÓN DE INVERSIÓN",
+      "desc": "Crowmie Renovable S.L., con CIF B09771056, y domicilio social en Calle isabel la catolica, 8 - 36, valencia, 46004, valencia, certifica que:",
+      "created": "Fecha de emisión",
+      "date": "Fecha de inversión",
+      "project": "Proyecto de inversión",
+      "amount": "Importe invertido: €",
+      "identification": "Documento de identidad / NIF/NIE/Pasaporte",
+      "investor": "Inversor/a",
+      "declare": "Declara haber recibido en la fecha indicada el importe arriba señalado, el cual queda aplicado como inversión en el proyecto seleccionado, conforme a los términos y condiciones aceptados por el inversor a través de la plataforma Crowmie.",
+      "adquire": "El inversor adquiere, desde esta fecha, todos los derechos económicos derivados de dicha participación, de acuerdo con lo establecido en la documentación contractual y en la normativa aplicable.",
+      "document": "Este documento constituye la confirmación de la operación de inversión, sin perjuicio de la emisión y remisión al inversor de los certificados adicionales, extractos y comunicaciones periódicas correspondientes."
+    }
+  }
+}

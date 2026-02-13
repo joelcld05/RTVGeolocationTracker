@@ -1,0 +1,145 @@
+block vars
+  - var mailTitle = 'Crowmie | Notificación'
+doctype html
+html(lang='es')
+  head
+    meta(charset='utf-8')
+    meta(http-equiv='Content-Type' content='text/html; charset=utf-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1')
+    title #{mailTitle}
+    style.
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f7;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        color: #343446;
+        -webkit-text-size-adjust: none;
+        text-size-adjust: none;
+      }
+      img {
+        border: 0;
+        display: block;
+        max-width: 100%;
+        height: auto;
+      }
+      a {
+        color: inherit;
+      }
+      #MessageViewBody a {
+        color: inherit;
+        text-decoration: none;
+      }
+      a[x-apple-data-detectors] {
+        color: inherit !important;
+        text-decoration: none !important;
+      }
+      .mail-wrapper {
+        width: 100%;
+        padding: 24px 12px;
+        background-color: #f5f5f7;
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+      }
+      .mail-card {
+        background-color: #ffffff;
+        border-radius: 16px;
+        margin: 0 auto;
+        max-width: 520px;
+        width: 100%;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      }
+      .mail-logo {
+        padding: 28px 24px 12px;
+        text-align: center;
+      }
+      .mail-logo img {
+        margin: 0 auto;
+      }
+      .mail-body {
+        padding: 8px 32px 32px;
+      }
+      .mail-heading {
+        font-size: 26px;
+        line-height: 1.25;
+        margin: 0 0 16px;
+        text-align: center;
+      }
+      .mail-text {
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0 0 14px;
+      }
+      .mail-text:last-child {
+        margin-bottom: 0;
+      }
+      .mail-button {
+        text-align: center;
+        padding: 8px 0 4px;
+      }
+      .mail-btn {
+        display: inline-block;
+        background-color: #000000;
+        color: #ffffff !important;
+        padding: 12px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .mail-footer {
+        margin: 20px auto 0;
+        max-width: 520px;
+        text-align: center;
+        font-size: 12px;
+        color: #7a7a8c;
+        padding: 0 12px 24px;
+      }
+      .mail-social-table {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin: 0 0 12px;
+        padding: 0;
+        list-style: none;
+      }
+      .mail-social-table a {
+        display: inline-block;
+      }
+      .mail-social-table img {
+        width: 28px;
+        height: 28px;
+      }
+      .mail-footer-logo {
+        display: inline-block;
+        margin: 12px auto 8px;
+      }
+      .contact p {
+        margin: 0 0 6px;
+      }
+      .contact a {
+        color: inherit;
+        text-decoration: none;
+      }
+      @media (max-width: 520px) {
+        .mail-card {
+          border-radius: 0;
+        }
+        .mail-body {
+          padding: 8px 20px 24px;
+        }
+      }
+  body
+    .mail-wrapper
+      .mail-card
+        include includes/logo
+        .mail-body
+          block content
+    include includes/footer
