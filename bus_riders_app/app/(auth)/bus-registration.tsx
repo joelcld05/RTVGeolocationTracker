@@ -12,7 +12,7 @@ export default function BusRegistrationScreen() {
   return (
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <BusRegistrationForm
-        onComplete={() => router.replace("/")}
+        onComplete={() => router.replace("/(tabs)")}
         onLogout={() => router.replace("/login")}
       />
     </SafeAreaProvider>

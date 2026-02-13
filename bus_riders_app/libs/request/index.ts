@@ -56,8 +56,7 @@ const defaultHeaders: HeadersMap = { "Content-Type": "application/json" };
 const MAX_RETRIES = 3;
 const NO_RETRY: unique symbol = Symbol("NO_RETRY");
 
-let url_endpoint = `${process.env.SERVER_API}`; // `http://169.254.38.2:8080/api/v1`;
-console.log("🚀 ~ url_endpoint:", url_endpoint);
+let url_endpoint = `http://192.168.1.155:8080/api/v1`;
 
 const buildHeaders = (
   token: string | null,

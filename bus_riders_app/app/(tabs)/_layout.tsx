@@ -43,11 +43,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const tabConfig = useMemo(
     () =>
       [
-        { name: "index", label: t("tabs.map"), icon: "map", type: "standard" },
         {
-          name: "routes",
-          label: t("tabs.routes"),
-          icon: "swap-horizontal",
+          name: "index",
+          label: t("tabs.map"),
+          icon: "map",
           type: "standard",
         },
         {
@@ -55,12 +54,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           label: t("tabs.tracking"),
           icon: "navigate",
           type: "center",
-        },
-        {
-          name: "alerts",
-          label: t("tabs.alerts"),
-          icon: "notifications",
-          type: "standard",
         },
         {
           name: "profile",
@@ -223,12 +216,12 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
     tabRow: {
       flexDirection: "row",
       alignItems: "flex-end",
-      justifyContent: "space-between",
+      justifyContent: "center",
     },
     tabItem: {
       alignItems: "center",
       justifyContent: "flex-end",
-      minWidth: 60,
+      minWidth: 150,
     },
     tabIconWrap: {
       width: 32,

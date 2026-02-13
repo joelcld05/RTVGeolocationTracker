@@ -74,6 +74,7 @@ export default function HomeScreen() {
   const { t } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme.mode]);
   const isApproved = isBusDataComplete && busApprovalStatus === "approved";
+  const currentRouteName = busData?.route?.trim() || "Albrook - Transistmica";
 
   const isPendingApproval = isBusDataComplete && !isApproved;
   const mapRef = useRef<MapView | null>(null);
@@ -334,7 +335,7 @@ export default function HomeScreen() {
                     {t("home.currentTracking")}
                   </Text>
                   <Text style={styles.trackingRoute}>
-                    {t("home.routePrefix")} Albrook - Transistmica
+                    {t("home.routePrefix")} {currentRouteName}
                   </Text>
                 </View>
               </View>

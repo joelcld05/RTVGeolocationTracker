@@ -1,6 +1,6 @@
 export default {
   cors: {
-    origin: ["http://169.254.94.163:8080"],
+    origin: ["http://192.168.1.155:8080"],
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "DELETE", "PUT", "PATCH"],
   },

@@ -119,8 +119,6 @@ class AuthController {
                 const bus = await Bus.findOne({
                   userId: logUserIn._id,
                 }).populate("route");
-                console.log("🚀 ~ AuthController ~ bus:", bus);
-
                 await createSession(req, user._id, {
                   ...token,
                   logged_with: "password",
