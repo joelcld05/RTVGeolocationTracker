@@ -77,8 +77,13 @@ Bus channel payload:
 {
   "busId": "BUS_500",
   "position": { "lat": 8.9824, "lng": -79.5199 },
+  "progress": 0.52,
+  "distanceMeters": 8421.44,
   "speed": 54,
-  "neighbors": { "ahead": ["BUS_732"], "behind": ["BUS_210"] },
+  "neighbors": {
+    "ahead": [{ "busId": "BUS_732", "distanceMeters": 300, "etaSeconds": 20 }],
+    "behind": [{ "busId": "BUS_210", "distanceMeters": 240, "etaSeconds": 16 }]
+  },
   "timestamp": 1706184200000
 }
 ```
@@ -90,10 +95,16 @@ Route channel payload:
 ```json
 {
   "busId": "BUS_500",
+  "routeId": "R12",
+  "direction": "FORWARD",
   "lat": 8.9824,
   "lng": -79.5199,
   "progress": 0.52,
-  "speed": 54
+  "distanceMeters": 8421.44,
+  "speed": 54,
+  "ahead": [{ "busId": "BUS_732", "distanceMeters": 300, "etaSeconds": 20 }],
+  "behind": [{ "busId": "BUS_210", "distanceMeters": 240, "etaSeconds": 16 }],
+  "timestamp": 1706184200000
 }
 ```
 
@@ -102,6 +113,7 @@ Route channel payload:
 The server reads state from these keys:
 
 - `route:{routeId}:{direction}` (ZSET) -> progress scores
+- `route:length:{routeId}:{direction}` (STRING) -> route total meters
 - `bus:{busId}` (HASH) -> last bus state
 
 It listens for pub/sub events on `WS_EVENT_PATTERN` (default `ws:bus:*`).

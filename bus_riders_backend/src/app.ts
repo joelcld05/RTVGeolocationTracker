@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 import Authentication from "@/services/Authentication";
+import routeStateSync from "@/services/RouteStateSync";
 import cache from "@/libs/ts-cache-mongoose";
 import mongoose from "mongoose";
 import Server from "@/server";
@@ -26,6 +27,7 @@ class App {
     this.status = "loading";
     await this.setAuth();
     await this.connect_db();
+    await routeStateSync.start();
     await this.start_server();
   }
 
@@ -74,6 +76,7 @@ class App {
 
   async stop_server() {
     if (this.server) this.server.close();
+    await routeStateSync.stop();
     await mongoose.disconnect();
     this.status = undefined;
     this.server = undefined;

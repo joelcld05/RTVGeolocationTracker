@@ -27,14 +27,27 @@ type BusState = {
   timestamp: number;
 };
 
-type NeighborResult = {
+type NeighborIdResult = {
   ahead: string[];
   behind: string[];
+};
+
+type NeighborDetail = {
+  busId: string;
+  distanceMeters: number | null;
+  etaSeconds: number | null;
+};
+
+type NeighborResult = {
+  ahead: NeighborDetail[];
+  behind: NeighborDetail[];
 };
 
 type BusPayload = {
   busId: string;
   position: { lat: number; lng: number };
+  progress: number;
+  distanceMeters: number | null;
   speed: number;
   neighbors: NeighborResult;
   timestamp: number;
@@ -42,10 +55,16 @@ type BusPayload = {
 
 type RoutePayload = {
   busId: string;
+  routeId: string;
+  direction: string;
   lat: number;
   lng: number;
   progress: number;
+  distanceMeters: number | null;
   speed: number;
+  ahead: NeighborDetail[];
+  behind: NeighborDetail[];
+  timestamp: number;
 };
 
 type ChannelInfo =
@@ -79,13 +98,18 @@ const jwtAlgorithms = (process.env.JWT_ALGORITHMS ?? "HS256")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
+const usesHmacJwt = jwtAlgorithms.some((algorithm) =>
+  algorithm.toUpperCase().startsWith("HS"),
+);
 
 const jwtVerifyOptions: VerifyOptions = { algorithms: jwtAlgorithms as any };
 if (process.env.JWT_AUDIENCE)
   jwtVerifyOptions.audience = process.env.JWT_AUDIENCE;
 if (process.env.JWT_ISSUER) jwtVerifyOptions.issuer = process.env.JWT_ISSUER;
 
-const jwtKey = jwtPublicKey ?? jwtSecret;
+const jwtKey = usesHmacJwt
+  ? (jwtSecret ?? jwtPublicKey)
+  : (jwtPublicKey ?? jwtSecret);
 if (!jwtKey) {
   console.error("Missing JWT_SECRET or JWT_PUBLIC_KEY");
   process.exit(1);
@@ -343,12 +367,12 @@ async function getBusState(busId: string): Promise<BusState | null> {
   };
 }
 
-async function getNeighbors(
+async function getNeighborIds(
   routeId: string,
   direction: string,
   busId: string,
   count = 3,
-): Promise<NeighborResult> {
+): Promise<NeighborIdResult> {
   const routeKey = `route:${routeId}:${direction}`;
 
   const rank = await keydb.zrank(routeKey, busId);
@@ -364,9 +388,69 @@ async function getNeighbors(
   return { ahead, behind };
 }
 
+async function getRouteLengthMeters(
+  routeId: string,
+  direction: string,
+): Promise<number | null> {
+  const raw = await keydb.get(`route:length:${routeId}:${direction}`);
+  if (!raw) {
+    return null;
+  }
+
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function calculateEta(distanceMeters: number, speedKmh: number): number | null {
+  if (speedKmh <= 0) {
+    return null;
+  }
+
+  const speedMs = speedKmh / 3.6;
+  return Math.round(distanceMeters / speedMs);
+}
+
+async function buildNeighborDetails(
+  state: BusState,
+  neighborIds: string[],
+  routeLengthMeters: number | null,
+): Promise<NeighborDetail[]> {
+  if (neighborIds.length === 0) {
+    return [];
+  }
+
+  const routeKey = `route:${state.routeId}:${state.direction}`;
+
+  const details = await Promise.all(
+    neighborIds.map(async (neighborId) => {
+      const score = await keydb.zscore(routeKey, neighborId);
+      const progress = score === null ? null : Number(score);
+      if (
+        !routeLengthMeters ||
+        progress === null ||
+        Number.isNaN(progress) ||
+        !Number.isFinite(progress)
+      ) {
+        return { busId: neighborId, distanceMeters: null, etaSeconds: null };
+      }
+
+      const distanceMeters =
+        Math.abs(progress - state.progress) * routeLengthMeters;
+      return {
+        busId: neighborId,
+        distanceMeters,
+        etaSeconds: calculateEta(distanceMeters, state.speed),
+      };
+    }),
+  );
+
+  return details;
+}
+
 function buildBusPayload(
   state: BusState,
   neighbors: NeighborResult,
+  distanceMeters: number | null,
 ): BusPayload {
   return {
     busId: state.busId,
@@ -374,19 +458,31 @@ function buildBusPayload(
       lat: state.lat,
       lng: state.lng,
     },
+    progress: state.progress,
+    distanceMeters,
     speed: state.speed,
     neighbors,
     timestamp: state.timestamp,
   };
 }
 
-function buildRoutePayload(state: BusState): RoutePayload {
+function buildRoutePayload(
+  state: BusState,
+  neighbors: NeighborResult,
+  distanceMeters: number | null,
+): RoutePayload {
   return {
     busId: state.busId,
+    routeId: state.routeId,
+    direction: state.direction,
     lat: state.lat,
     lng: state.lng,
     progress: state.progress,
+    distanceMeters,
     speed: state.speed,
+    ahead: neighbors.ahead,
+    behind: neighbors.behind,
+    timestamp: state.timestamp,
   };
 }
 
@@ -394,15 +490,28 @@ async function handleBusEvent(busId: string): Promise<void> {
   const state = await getBusState(busId);
   if (!state) return;
 
-  const neighbors = await getNeighbors(
+  const neighborIds = await getNeighborIds(
     state.routeId,
     state.direction,
     busId,
     neighborCount,
   );
+  const routeLengthMeters = await getRouteLengthMeters(
+    state.routeId,
+    state.direction,
+  );
+  const [ahead, behind] = await Promise.all([
+    buildNeighborDetails(state, neighborIds.ahead, routeLengthMeters),
+    buildNeighborDetails(state, neighborIds.behind, routeLengthMeters),
+  ]);
 
-  const busPayload = buildBusPayload(state, neighbors);
-  const routePayload = buildRoutePayload(state);
+  const neighbors = { ahead, behind };
+  const distanceMeters = routeLengthMeters
+    ? state.progress * routeLengthMeters
+    : null;
+
+  const busPayload = buildBusPayload(state, neighbors, distanceMeters);
+  const routePayload = buildRoutePayload(state, neighbors, distanceMeters);
 
   broadcast(`bus:${busId}`, busPayload);
   broadcast(`route:${state.routeId}:${state.direction}`, routePayload);

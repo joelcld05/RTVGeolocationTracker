@@ -46,6 +46,70 @@ import { isEmpty } from "lodash";
 import passport from "passport";
 import axios from "axios";
 
+const ALLOWED_DIRECTIONS = new Set(["FORWARD", "BACKWARD"]);
+
+function normalizeDirection(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  if (!ALLOWED_DIRECTIONS.has(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function buildMqttClaimsFromBus(bus: any): Record<string, unknown> {
+  if (!bus?._id) {
+    return {};
+  }
+
+  const busId = String(bus._id).trim();
+  const routeDoc = bus?.route;
+  const routeId = String(
+    typeof routeDoc === "string"
+      ? routeDoc
+      : (routeDoc?._id ?? routeDoc?.id ?? ""),
+  ).trim();
+  const direction = normalizeDirection(routeDoc?.direction);
+
+  if (!busId || !routeId || !direction) {
+    return {};
+  }
+
+  const mqttClientId = busId.startsWith("BUS_") ? busId : `BUS_${busId}`;
+  const publishTopic = `gps/${routeId}/${direction}/${busId}`;
+
+  return {
+    sub: busId,
+    busId,
+    username: mqttClientId,
+    clientid: mqttClientId,
+    routeId,
+    direction,
+    acl: {
+      pub: [publishTopic],
+      sub: [],
+    },
+  };
+}
+
+async function attachBusClaimsToTokenPayload(
+  userId: unknown,
+  payload: Record<string, unknown>,
+) {
+  const bus = await Bus.findOne({ userId }).populate("route");
+  return {
+    bus,
+    tokenPayload: {
+      ...payload,
+      ...buildMqttClaimsFromBus(bus),
+    },
+  };
+}
+
 class AuthController {
   rt = Router();
   baseRoute = "/auth";
@@ -115,10 +179,11 @@ class AuthController {
                 const logUserIn = await instance.saveParseObject(user._doc);
                 logUserIn.role = user?._roles[0]?.code || PublicRole;
                 logUserIn.hd_role = user?._roles[0]?.hd_role || "USER";
-                const token = signToken(logUserIn, true);
-                const bus = await Bus.findOne({
-                  userId: logUserIn._id,
-                }).populate("route");
+                const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
+                  logUserIn._id,
+                  logUserIn,
+                );
+                const token = signToken(tokenPayload, true);
                 await createSession(req, user._id, {
                   ...token,
                   logged_with: "password",
@@ -476,10 +541,11 @@ class AuthController {
           await OtpController.validateOptVaerification(user);
         userRefresh.role = user?._roles[0]?.code || PublicRole;
         userRefresh.hd_role = user?._roles[0]?.hd_role || "USER";
-        const token = signToken(userRefresh, opt_verification);
-        const bus = await Bus.findOne({ userId: userRefresh._id }).populate(
-          "route",
+        const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
+          userRefresh._id,
+          userRefresh,
         );
+        const token = signToken(tokenPayload, opt_verification);
         await createSession(
           req,
           user._id,
@@ -524,12 +590,16 @@ class AuthController {
       const registered = await instance.saveParseObject(user._doc);
       registered.role = role?.code || PublicRole;
       registered.hd_role = role?.hd_role || "USER";
-      const token = signToken(registered);
+      const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
+        user._id,
+        registered,
+      );
+      const token = signToken(tokenPayload);
       await createSession(req, user._id, {
         ...token,
         logged_with: auth.logged_with,
       });
-      res.status(OK).json({ ...USER_CREATED, ...token, new_user: true });
+      res.status(OK).json({ ...USER_CREATED, ...token, bus, new_user: true });
     } else {
       try {
         const canAccess = await checkRoleForOriginAllow(user, req);
@@ -543,12 +613,16 @@ class AuthController {
         const logeded = await userInstance.saveParseObject(user._doc);
         logeded.role = user?._roles[0]?.code || PublicRole;
         logeded.hd_role = user?._roles[0]?.hd_role || "USER";
-        const token = signToken(logeded, true);
+        const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
+          user._id,
+          logeded,
+        );
+        const token = signToken(tokenPayload, true);
         await createSession(req, user._id, {
           ...token,
           logged_with: auth.logged_with,
         });
-        return res.status(OK).json({ ...token, new_user: false });
+        return res.status(OK).json({ ...token, bus, new_user: false });
       } catch (errsing) {
         throw errsing;
       }
@@ -581,12 +655,16 @@ class AuthController {
         const logeded = await userInstance.saveParseObject(user._doc);
         logeded.role = user?._roles[0]?.code || PublicRole;
         logeded.hd_role = user?._roles[0]?.hd_role || "USER";
-        const token = signToken(logeded, true);
+        const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
+          user._id,
+          logeded,
+        );
+        const token = signToken(tokenPayload, true);
         await createSession(req, user._id, {
           ...token,
           logged_with: auth.logged_with,
         });
-        return res.status(OK).json({ ...token, new_user: false });
+        return res.status(OK).json({ ...token, bus, new_user: false });
       } catch (errsing) {
         throw "";
       }

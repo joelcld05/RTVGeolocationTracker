@@ -62,12 +62,21 @@ export default function HomeScreen() {
     routeId,
     busData,
     hasBusInfo,
+    userData,
   } = useAuth();
+  const currentDirection =
+    typeof userData === "object" &&
+    userData !== null &&
+    "direction" in userData &&
+    typeof (userData as Record<string, unknown>).direction === "string" &&
+    (userData as Record<string, string>).direction.toUpperCase() === "BACKWARD"
+      ? "BACKWARD"
+      : "FORWARD";
 
   const { publishLocation } = useMqttPublisher({
     busId,
     routeId,
-    direction: "FORWARD",
+    direction: currentDirection,
     enabled: isBusDataComplete,
   });
   const theme = useAppTheme();

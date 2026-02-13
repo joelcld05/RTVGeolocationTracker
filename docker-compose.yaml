@@ -45,6 +45,15 @@ services:
       EMQX_LISTENERS__SSL__DEFAULT__BIND: 0.0.0.0:8883
       EMQX_LISTENERS__WS__DEFAULT__BIND: 0.0.0.0:8083
       EMQX_LISTENERS__WSS__DEFAULT__BIND: 0.0.0.0:8084
+      EMQX_AUTHENTICATION__1__ENABLE: "true"
+      EMQX_AUTHENTICATION__1__MECHANISM: jwt
+      EMQX_AUTHENTICATION__1__FROM: password
+      EMQX_AUTHENTICATION__1__ALGORITHM: hmac-based
+      EMQX_AUTHENTICATION__1__USE_JWKS: "false"
+      EMQX_AUTHENTICATION__1__SECRET: ${MQTT_JWT_SECRET:-uqrweoi8143279vnsdlqkw@@}
+      EMQX_AUTHENTICATION__1__SECRET_BASE64_ENCODED: "false"
+      EMQX_AUTHENTICATION__1__ACL_CLAIM_NAME: acl
+      EMQX_AUTHORIZATION__NO_MATCH: deny
 
     volumes:
       - emqx_data:/opt/emqx/data
@@ -57,6 +66,8 @@ services:
     container_name: mqtt_client
     env_file:
       - ./bus_riders_mqtt/.env
+    environment:
+      MQTT_JWT_SECRET: ${MQTT_JWT_SECRET:-uqrweoi8143279vnsdlqkw@@}
     depends_on:
       - emqx
       - keydb
@@ -70,6 +81,9 @@ services:
       - 8081:8081
     env_file:
       - ./bus_riders_ws/.env
+    environment:
+      JWT_SECRET: ${MQTT_JWT_SECRET:-uqrweoi8143279vnsdlqkw@@}
+      JWT_PUBLIC_KEY: ""
     depends_on:
       - emqx
       - keydb

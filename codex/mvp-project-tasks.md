@@ -37,10 +37,10 @@ Audit status updated from current codebase on `2026-02-13`:
 - [ ] Define WebSocket outbound payload schema:
   - [x] `busId`
   - [x] `progress`
-  - [ ] `distanceMeters`
-  - [ ] `ahead[]`
-  - [ ] `behind[]`
-  - [ ] `timestamp`
+  - [x] `distanceMeters`
+  - [x] `ahead[]`
+  - [x] `behind[]`
+  - [x] `timestamp`
 - [ ] Publish these contracts in one shared doc for app + backend teams.
 - [ ] Align contract naming across docs and services:
   - [ ] Route ordering key: contract uses `route:{routeId}:{direction}:buses`, code uses `route:{routeId}:{direction}`.
@@ -50,8 +50,8 @@ Audit status updated from current codebase on `2026-02-13`:
 
 - [x] Deploy/configure `EMQX` for MQTT.
   - [ ] Enable TLS (`mqtts://`, port `8883`).
-  - [ ] Enable JWT auth.
-  - [ ] Configure ACL so each bus can only publish to its own topic path.
+  - [x] Enable JWT auth.
+  - [x] Configure ACL so each bus can only publish to its own topic path.
 - [x] Deploy/configure `KeyDB` (or Redis-compatible) for real-time state.
 - [x] Provision runtime envs for `MQTT Ingestion Service` and `WebSocket Service`.
 - [ ] Configure secrets management for JWT keys/certs/connection URLs.
@@ -66,10 +66,10 @@ Audit status updated from current codebase on `2026-02-13`:
   - [ ] `route:{routeId}:FORWARD:geometry`
   - [ ] `route:{routeId}:BACKWARD:geometry`
 - [ ] Add validation for minimum geometry quality (enough points, valid lat/lng).
-- [ ] Implement backend -> KeyDB route sync:
-  - [ ] Write `route:shape:{routeId}:{direction}` for each active route.
-  - [ ] Write `route:length:{routeId}:{direction}` in meters.
-  - [ ] Refresh/update keys when route geometry changes.
+- [x] Implement backend -> KeyDB route sync:
+  - [x] Write `route:shape:{routeId}:{direction}` for each active route.
+  - [x] Write `route:length:{routeId}:{direction}` in meters.
+  - [x] Refresh/update keys when route geometry changes.
 
 ## 5. Build MQTT Ingestion Service
 
@@ -105,19 +105,19 @@ Audit status updated from current codebase on `2026-02-13`:
 - [x] Accept/consume processed updates from ingestion layer.
 - [x] Broadcast updates to `route:{routeId}:{direction}` subscribers.
 - [x] Implement disconnect handling + reconnection-safe behavior.
-- [ ] Align route-channel payload with MVP contract:
-  - [ ] Include `neighbors` and neighbor distance data.
-  - [ ] Include `timestamp`.
+- [x] Align route-channel payload with MVP contract:
+  - [x] Include `neighbors` and neighbor distance data.
+  - [x] Include `timestamp`.
 - [ ] Add WebSocket service-side rate limiting / max message size protections.
 
 ## 8. Integrate Bus Mobile App (Publisher)
 
-- [ ] Ensure bus authentication returns JWT with `sub`, `routeId`, `direction`, `exp`.
+- [x] Ensure bus authentication returns JWT with `sub`, `routeId`, `direction`, `exp`.
 - [ ] Connect app to EMQX over TLS.
 - [ ] Publish GPS every `2-5s` to exact topic format.
 - [x] Add retry/backoff for unstable network.
 - [x] Guard against publishing when auth/session is invalid.
-- [ ] Use route direction dynamically from bus/route data (currently hardcoded `FORWARD`).
+- [x] Use route direction dynamically from bus/route data (currently hardcoded `FORWARD`).
 - [ ] Replace hardcoded app API endpoint with env-driven config.
 - [ ] Add publish cadence throttle to meet MVP interval target (`2-5s`).
 - [ ] Replace free-text route registration with route picker backed by backend route catalog.
@@ -139,7 +139,7 @@ Audit status updated from current codebase on `2026-02-13`:
 - [ ] Add input validation and payload size limits.
 - [ ] Add optional rate limiting for abusive clients/devices.
 - [x] WebSocket JWT validation and channel authorization are implemented.
-- [ ] Configure EMQX JWT auth + ACL rules to enforce publish permissions at broker level.
+- [x] Configure EMQX JWT auth + ACL rules to enforce publish permissions at broker level.
 - [ ] Ensure `JWT_SECRET`/`JWT_PUBLIC_KEY` are not hardcoded in committed env files.
 
 ## 11. Reliability and Observability
@@ -164,8 +164,8 @@ Audit status updated from current codebase on `2026-02-13`:
 - [ ] Load test baseline:
   - [ ] target `1000+ buses/route` with acceptable latency.
 - [ ] Security checks:
-  - [ ] unauthorized publish blocked
-  - [ ] unauthorized websocket subscribe blocked
+  - [x] unauthorized publish blocked
+  - [x] unauthorized websocket subscribe blocked
 - [ ] End-to-end demo scenario:
   - [ ] bus movement reflected live in passenger/admin client.
 - [ ] Production readiness checklist signed by backend + app owners.

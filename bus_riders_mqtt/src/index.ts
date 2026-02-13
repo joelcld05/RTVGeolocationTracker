@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import Redis from "ioredis";
 import dotenv from "dotenv";
 import mqtt from "mqtt";
+import jwt from "jsonwebtoken";
 import { createNeighborService } from "./utils/neighborService";
 import { createRealtimePublisher } from "./utils/realtimePublisher";
 import { createRouteProjectionService } from "./utils/routeProjection";
@@ -20,6 +21,12 @@ const mqttBrokerUrl =
 const mqttClientId = process.env.MQTT_CLIENT_ID ?? "bus_riders_mqtt_ingestion";
 const mqttUsername = process.env.MQTT_USERNAME;
 const mqttPassword = process.env.MQTT_PASSWORD;
+const mqttJwtSecret = process.env.MQTT_JWT_SECRET;
+const mqttJwtAudience = process.env.MQTT_JWT_AUDIENCE;
+const mqttJwtExpiresInSeconds = Number.parseInt(
+  process.env.MQTT_JWT_EXP_SECONDS ?? "86400",
+  10,
+);
 const mqttSubscribeTopic = process.env.MQTT_SUBSCRIBE_TOPIC ?? "gps/+/+/+";
 const mqttSubscribeQosRaw = Number.parseInt(
   process.env.MQTT_SUBSCRIBE_QOS ?? "0",
@@ -55,6 +62,36 @@ const routeCacheTtlMs = Number.parseInt(
   process.env.ROUTE_CACHE_TTL_MS ?? "300000",
   10,
 );
+const resolvedMqttUsername = mqttUsername || mqttClientId;
+
+function buildServiceJwtToken(): string | null {
+  if (!mqttJwtSecret) {
+    return null;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const expirationOffset = Number.isFinite(mqttJwtExpiresInSeconds)
+    ? Math.max(60, mqttJwtExpiresInSeconds)
+    : 86400;
+
+  const payload = {
+    sub: mqttClientId,
+    username: resolvedMqttUsername,
+    clientid: mqttClientId,
+    role: "mqtt_service",
+    iat: now,
+    exp: now + expirationOffset,
+    acl: {
+      pub: [],
+      sub: [mqttSubscribeTopic],
+    },
+  };
+
+  const options = mqttJwtAudience ? { audience: mqttJwtAudience } : undefined;
+  return jwt.sign(payload, mqttJwtSecret, options);
+}
+
+const resolvedMqttPassword = mqttPassword || buildServiceJwtToken() || undefined;
 
 const keydb = new Redis(keydbUrl, {
   maxRetriesPerRequest: null,
@@ -115,14 +152,18 @@ eventBus.on("normalized", (event: NormalizedEvent) => {
 
 const mqttClient = mqtt.connect(mqttBrokerUrl, {
   clientId: mqttClientId,
-  username: mqttUsername,
-  password: mqttPassword,
+  username: resolvedMqttUsername,
+  password: resolvedMqttPassword,
   keepalive: mqttKeepalive,
   reconnectPeriod: mqttReconnectPeriodMs,
 });
 
 mqttClient.on("connect", () => {
-  console.log("[mqtt] connected", { broker: mqttBrokerUrl });
+  console.log("[mqtt] connected", {
+    broker: mqttBrokerUrl,
+    hasPassword: Boolean(resolvedMqttPassword),
+    authMode: mqttPassword ? "static_password" : mqttJwtSecret ? "jwt" : "none",
+  });
   mqttClient.subscribe(
     mqttSubscribeTopic,
     { qos: mqttSubscribeQos },
