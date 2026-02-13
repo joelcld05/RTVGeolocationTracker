@@ -17,7 +17,7 @@ We use **KeyDB Sorted Sets** to maintain real-time ordering.
 
 Each route + direction has one sorted set:
 
-    route:{routeId}:{direction}:buses
+    route:{routeId}:{direction}
 
 Each bus is stored as:
 
@@ -26,7 +26,7 @@ Each bus is stored as:
 
 Example:
 
-    ZADD route:R12:FORWARD:buses 0.42 bus-500
+    ZADD route:R12:FORWARD 0.42 bus-500
 
 Sorted sets automatically keep buses ordered by position along the
 route.
@@ -45,7 +45,7 @@ Assume:
 
 ## 1️⃣ Get the Bus Rank
 
-    ZRANK route:R12:FORWARD:buses bus-500
+    ZRANK route:R12:FORWARD bus-500
 
 Example:
 
@@ -57,7 +57,7 @@ This means the bus is the 500th bus in route order.
 
 ## 2️⃣ Get 3 Buses Ahead
 
-    ZRANGE route:R12:FORWARD:buses 500 502
+    ZRANGE route:R12:FORWARD 500 502
 
 Equivalent to:
 
@@ -67,7 +67,7 @@ Equivalent to:
 
 ## 3️⃣ Get 3 Buses Behind
 
-    ZRANGE route:R12:FORWARD:buses 496 498
+    ZRANGE route:R12:FORWARD 496 498
 
 Equivalent to:
 
@@ -83,7 +83,7 @@ If rank \< 3 → clamp to 0.
 
 ``` javascript
 async function getNeighbors(redis, routeId, direction, busId) {
-  const key = `route:${routeId}:${direction}:buses`;
+  const key = `route:${routeId}:${direction}`;
 
   const rank = await redis.zrank(key, busId);
 
@@ -121,8 +121,8 @@ Never mix directions.
 
 Use separate keys:
 
-    route:R12:FORWARD:buses
-    route:R12:BACKWARD:buses
+    route:R12:FORWARD
+    route:R12:BACKWARD
 
 Each direction maintains independent ordering.
 

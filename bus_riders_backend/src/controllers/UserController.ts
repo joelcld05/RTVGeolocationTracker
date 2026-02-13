@@ -2,27 +2,11 @@ import {
   checkReqBodyInput,
   checkReqDataError,
   queryFormatting,
-  toObjectId,
-  KYC_INVALID_STATUS,
-  NO_VALID_USER,
   BAD_REQUEST,
-  NOT_FOUND,
   OK,
 } from "@/utils";
-import {
-  _checkRoleAction,
-  _checkRoles,
-  getRequestUser,
-  isValidObjectIdBody,
-  isValidObjectIdParam,
-} from "@/middleware/auth";
-
-import {
-  AffiliateRole,
-  modelName as roleModel,
-  UserRole,
-} from "@/models/_Role";
-
+import { _checkRoleAction, _checkRoles } from "@/middleware/auth";
+import { modelName as roleModel } from "@/models/_Role";
 import _ModelRepo from "@/services/repository/_ModelRepo";
 import { Request, Response, Router } from "express";
 import { modelName } from "@/models/_User";

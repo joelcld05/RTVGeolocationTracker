@@ -100,7 +100,7 @@ Example:
 
 Stored once per direction:
 
-route:{routeId}:FORWARD:geometry route:{routeId}:BACKWARD:geometry
+route:shape:{routeId}:FORWARD route:shape:{routeId}:BACKWARD
 
 Routes are generated using Google Routes API with:
 
@@ -158,11 +158,11 @@ KeyDB is used as the real-time state store.
 
 Sorted Set Per Route Direction:
 
-route:{routeId}:{direction}:buses
+route:{routeId}:{direction}
 
 Update Bus Position:
 
-ZADD route:R12:FORWARD:buses progress bus-500
+ZADD route:R12:FORWARD progress bus-500
 
 Buses are automatically sorted by route progress.
 
@@ -172,7 +172,7 @@ Buses are automatically sorted by route progress.
 
 Step 1 --- Get Rank:
 
-ZRANK route:R12:FORWARD:buses bus-500
+ZRANK route:R12:FORWARD bus-500
 
 Step 2 --- Get 3 Ahead:
 

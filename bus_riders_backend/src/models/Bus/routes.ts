@@ -20,6 +20,14 @@ export const schema = new Schema(
     name: { type: String, required: true, trim: true },
     number: { type: String, required: true, trim: true },
     direction: { type: String, enum: ["FORWARD", "BACKWARD"] },
+    start_point: {
+      type: pointSchema,
+      required: true,
+    },
+    end_point: {
+      type: pointSchema,
+      required: true,
+    },
     route: {
       type: pointSchema,
       required: true,

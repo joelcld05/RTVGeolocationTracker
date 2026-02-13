@@ -87,7 +87,7 @@ For each valid GPS message:
 
 Update sorted set:
 
-    ZADD route:{routeId}:{direction}:buses progress busId
+    ZADD route:{routeId}:{direction} progress busId
 
 This maintains automatic ordering of buses along the route.
 
