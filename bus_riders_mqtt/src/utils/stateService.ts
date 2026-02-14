@@ -1,6 +1,8 @@
 import type Redis from "ioredis";
 import type { MessageMeta, NormalizedEvent, TripStatus } from "../types";
 
+export const ROUTE_ORDERING_INDEX_KEY = "route:ordering:index";
+
 type StateService = {
   storeMessage: (
     busId: string,
@@ -329,6 +331,7 @@ export function createStateService(options: StateServiceOptions): StateService {
       pipeline.zrem(`route:${previousRouteId}:${previousDirection}`, event.busId);
     }
     pipeline.zadd(routeKey, event.progress, event.busId);
+    pipeline.sadd(ROUTE_ORDERING_INDEX_KEY, routeKey);
     pipeline.hset(busKey, {
       lat: String(enrichedEvent.lat),
       lng: String(enrichedEvent.lng),

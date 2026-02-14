@@ -121,13 +121,13 @@ Audit status updated from current codebase on `2026-02-14`:
 - [x] Reset arrival status when a new trip starts.
   - [x] Clear `ARRIVED` when bus exits end-zone for configured duration.
   - [x] Clear `ARRIVED` when progress indicates restart near route origin (new cycle).
-- [ ] Add stale bus cleanup in route sorted sets when bus state expires.
-  - [ ] Remove stale bus IDs from `route:{routeId}:{direction}` when `bus:{busId}` key is expired/missing.
-  - [ ] Add periodic sweep job with configurable interval (`STALE_BUS_SWEEP_MS`).
+- [x] Add stale bus cleanup in route sorted sets when bus state expires.
+  - [x] Remove stale bus IDs from `route:{routeId}:{direction}` when `bus:{busId}` key is expired/missing.
+  - [x] Add periodic sweep job with configurable interval (`STALE_BUS_SWEEP_MS`).
   - [x] Remove bus from previous route-direction key when route assignment changes.
-- [ ] Add MQTT service health/readiness endpoint.
-  - [ ] Add `/health` endpoint with MQTT connection + KeyDB connectivity status.
-  - [ ] Add `/ready` endpoint that requires active MQTT subscription and KeyDB write/read check.
+- [x] Add MQTT service health/readiness endpoint.
+  - [x] Add `/health` endpoint with MQTT connection + KeyDB connectivity status.
+  - [x] Add `/ready` endpoint that requires active MQTT subscription and KeyDB write/read check.
 
 ## 6. Implement Neighbor Calculation
 
@@ -252,7 +252,7 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Health checks/readiness probes for each service.
 - [ ] Alerting for broker/service/keydb failures.
 - [x] WebSocket `/health` endpoint exists.
-- [ ] Add MQTT health endpoint and standardized JSON health payload.
+- [x] Add MQTT health endpoint and standardized JSON health payload.
 - [ ] Add Prometheus/OpenTelemetry metrics for MQTT and WebSocket services.
 
 ## 12. MVP Validation (Go/No-Go)

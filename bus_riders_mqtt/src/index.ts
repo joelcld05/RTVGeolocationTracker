@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import http from "http";
 import Redis from "ioredis";
 import dotenv from "dotenv";
 import mqtt from "mqtt";
@@ -7,11 +8,15 @@ import { createNeighborService } from "./utils/neighborService";
 import { createRealtimePublisher } from "./utils/realtimePublisher";
 import { createRouteProjectionService } from "./utils/routeProjection";
 import type { MessageMeta, NormalizedEvent } from "./types";
-import { createStateService } from "./utils/stateService";
+import {
+  createStateService,
+  ROUTE_ORDERING_INDEX_KEY,
+} from "./utils/stateService";
 import { createGpsHandler } from "./utils/gpsHandler";
 import { parseGpsTopic } from "./utils/topic";
 import { toBuffer } from "./utils/buffer";
 import { classifyRejectReason, logRejectedMessage } from "./utils/rejects";
+import { createStaleBusSweeper } from "./utils/staleBusSweep";
 
 dotenv.config();
 
@@ -94,6 +99,25 @@ const staleTimestampMaxFutureDriftMs = Number.parseInt(
   process.env.STALE_TIMESTAMP_MAX_FUTURE_DRIFT_MS ?? "5000",
   10,
 );
+const staleBusSweepMs = Number.parseInt(
+  process.env.STALE_BUS_SWEEP_MS ?? "30000",
+  10,
+);
+const staleBusSweepBatchSize = Number.parseInt(
+  process.env.STALE_BUS_SWEEP_BATCH_SIZE ?? "200",
+  10,
+);
+const staleBusSweepSeedScanCount = Number.parseInt(
+  process.env.STALE_BUS_SWEEP_SEED_SCAN_COUNT ?? "500",
+  10,
+);
+const staleBusSweepSeedFromScan =
+  (process.env.STALE_BUS_SWEEP_SEED_SCAN ?? "true").toLowerCase() !== "false";
+const mqttHealthHost = process.env.MQTT_HEALTH_HOST ?? "0.0.0.0";
+const mqttHealthPort = Number.parseInt(
+  process.env.MQTT_HEALTH_PORT ?? "8082",
+  10,
+);
 const resolvedMqttUsername = mqttUsername || mqttClientId;
 
 function buildServiceJwtToken(): string | null {
@@ -140,6 +164,10 @@ keydb
 const eventBus = new EventEmitter();
 const allowedDirections = new Set(["FORWARD", "BACKWARD"]);
 const gpsTopicPrefix = "gps";
+let mqttConnected = false;
+let mqttSubscriptionActive = false;
+let lastMqttConnectedAt: number | null = null;
+let lastMqttSubscribedAt: number | null = null;
 
 const { projectToRoute, getRouteLengthMeters } = createRouteProjectionService({
   keydb,
@@ -196,6 +224,24 @@ const { pushRealtimeUpdate } = createRealtimePublisher({
   buildNeighborDetails,
 });
 
+const staleBusSweeper = createStaleBusSweeper({
+  keydb,
+  indexKey: ROUTE_ORDERING_INDEX_KEY,
+  intervalMs:
+    Number.isFinite(staleBusSweepMs) && staleBusSweepMs > 0
+      ? staleBusSweepMs
+      : 0,
+  memberBatchSize:
+    Number.isFinite(staleBusSweepBatchSize) && staleBusSweepBatchSize > 0
+      ? staleBusSweepBatchSize
+      : 200,
+  seedScanCount:
+    Number.isFinite(staleBusSweepSeedScanCount) && staleBusSweepSeedScanCount > 0
+      ? staleBusSweepSeedScanCount
+      : 500,
+  seedFromScan: staleBusSweepSeedFromScan,
+});
+
 const handleGpsMessage = createGpsHandler({
   projectToRoute,
   storeMessage,
@@ -238,6 +284,8 @@ const mqttClient = mqtt.connect(mqttBrokerUrl, {
 });
 
 mqttClient.on("connect", () => {
+  mqttConnected = true;
+  lastMqttConnectedAt = Date.now();
   console.log("[mqtt] connected", {
     broker: mqttBrokerUrl,
     hasPassword: Boolean(resolvedMqttPassword),
@@ -248,9 +296,12 @@ mqttClient.on("connect", () => {
     { qos: mqttSubscribeQos },
     (error) => {
       if (error) {
+        mqttSubscriptionActive = false;
         console.warn("[mqtt] subscribe failed", error);
         return;
       }
+      mqttSubscriptionActive = true;
+      lastMqttSubscribedAt = Date.now();
       console.log("[mqtt] subscribed", {
         topic: mqttSubscribeTopic,
         qos: mqttSubscribeQos,
@@ -294,15 +345,144 @@ mqttClient.on("message", (topic, payload, packet) => {
 });
 
 mqttClient.on("reconnect", () => {
+  mqttSubscriptionActive = false;
   console.log("[mqtt] reconnecting");
 });
 
 mqttClient.on("close", () => {
+  mqttConnected = false;
+  mqttSubscriptionActive = false;
   console.log("[mqtt] connection closed");
 });
 
 mqttClient.on("error", (error) => {
   console.warn("[mqtt] error", error);
+});
+
+mqttClient.on("offline", () => {
+  mqttConnected = false;
+  mqttSubscriptionActive = false;
+  console.warn("[mqtt] offline");
+});
+
+type KeydbCheckResult = {
+  ok: boolean;
+  latencyMs: number | null;
+  error: string | null;
+};
+
+function jsonResponse(
+  res: http.ServerResponse,
+  statusCode: number,
+  payload: Record<string, unknown>,
+): void {
+  res.writeHead(statusCode, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(payload));
+}
+
+async function checkKeydbPing(): Promise<KeydbCheckResult> {
+  const startedAt = Date.now();
+  try {
+    await keydb.ping();
+    return {
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      latencyMs: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+async function checkKeydbReadyRoundTrip(): Promise<KeydbCheckResult> {
+  const startedAt = Date.now();
+  const probeKey = `mqtt:ready:probe:${mqttClientId}`;
+  const probeValue = String(Date.now());
+
+  try {
+    await keydb.set(probeKey, probeValue, "EX", 10);
+    const readValue = await keydb.get(probeKey);
+    await keydb.del(probeKey);
+
+    if (readValue !== probeValue) {
+      throw new Error("KeyDB read/write probe mismatch");
+    }
+
+    return {
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      error: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      latencyMs: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+const healthServer = http.createServer((req, res) => {
+  if (!req.url || req.method !== "GET") {
+    jsonResponse(res, 404, { error: "NOT_FOUND" });
+    return;
+  }
+
+  const url = new URL(req.url, "http://localhost");
+  if (url.pathname === "/health") {
+    void (async () => {
+      const keydbStatus = await checkKeydbPing();
+      const sweeperStats = staleBusSweeper.getStats();
+      jsonResponse(res, 200, {
+        status: "ok",
+        service: "bus_riders_mqtt",
+        mqtt: {
+          connected: mqttConnected,
+          subscribed: mqttSubscriptionActive,
+          topic: mqttSubscribeTopic,
+          lastConnectedAt: lastMqttConnectedAt,
+          lastSubscribedAt: lastMqttSubscribedAt,
+        },
+        keydb: keydbStatus,
+        staleSweep: sweeperStats,
+        timestamp: Date.now(),
+      });
+    })().catch((error) => {
+      jsonResponse(res, 500, {
+        status: "error",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    return;
+  }
+
+  if (url.pathname === "/ready") {
+    void (async () => {
+      const keydbReady = await checkKeydbReadyRoundTrip();
+      const ready = mqttConnected && mqttSubscriptionActive && keydbReady.ok;
+      jsonResponse(res, ready ? 200 : 503, {
+        status: ready ? "ready" : "not_ready",
+        checks: {
+          mqttConnected,
+          mqttSubscribed: mqttSubscriptionActive,
+          keydbReadWrite: keydbReady,
+        },
+        timestamp: Date.now(),
+      });
+    })().catch((error) => {
+      jsonResponse(res, 503, {
+        status: "not_ready",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+    return;
+  }
+
+  jsonResponse(res, 404, { error: "NOT_FOUND" });
 });
 
 let isShuttingDown = false;
@@ -314,6 +494,11 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
 
   await new Promise<void>((resolve) => {
     mqttClient.end(true, {}, () => resolve());
+  });
+
+  await staleBusSweeper.stop();
+  await new Promise<void>((resolve) => {
+    healthServer.close(() => resolve());
   });
 
   try {
@@ -337,3 +522,11 @@ void keydb.ping().then(
     console.warn("[keydb] ping failed", error);
   },
 );
+
+void staleBusSweeper.start().catch((error) => {
+  console.warn("[stale-sweep] failed to start", { error });
+});
+
+healthServer.listen(mqttHealthPort, mqttHealthHost, () => {
+  console.log(`[health] server listening on ${mqttHealthHost}:${mqttHealthPort}`);
+});
