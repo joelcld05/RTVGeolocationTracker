@@ -121,6 +121,9 @@ const es = {
     phoneNumberPlaceholder: "p. ej., +507 6000-0000",
     registerBus: "Registrar bus",
     registering: "Registrando...",
+    loadingRoutes: "Cargando rutas...",
+    noRoutesAvailable: "No hay rutas disponibles para registrar.",
+    routeLoadError: "No se pudo cargar el catalogo de rutas. Intenta de nuevo.",
   },
   busApproval: {
     statusLabel: "ESTADO",

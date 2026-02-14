@@ -9,6 +9,7 @@ import _ModelRepo from "@/services/repository/_ModelRepo";
 import { _auth, _checkRoles } from "@/middleware/auth";
 import { Request, Response, Router } from "express";
 import { modelName } from "@/models/Bus/bus";
+import Routes from "@/models/Bus/routes";
 import { check, query } from "express-validator";
 
 class BusController {
@@ -21,6 +22,7 @@ class BusController {
       .get(this.get)
       .post(this.create)
       .put(this.update);
+    this.rt.route(`${this.baseRoute}/routes`).get(this.getRouteCatalog);
     this.rt.route(`/buses`).get(this.getMany);
     return this.rt;
   }
@@ -51,6 +53,39 @@ class BusController {
         const filterOptions = queryFormatting(req.query);
         const data = await repo.getMany(filterOptions);
         return res.status(OK).json(data);
+      } catch (error) {
+        return res.status(BAD_REQUEST).json({ error });
+      }
+    },
+  ];
+
+  getRouteCatalog = [
+    _auth,
+    query("direction").optional().trim().isIn(["FORWARD", "BACKWARD"]),
+    checkReqDataError,
+    async (req: Request, res: Response) => {
+      try {
+        const directionParam = req.query.direction;
+        const direction =
+          typeof directionParam === "string"
+            ? directionParam.trim().toUpperCase()
+            : "";
+
+        const filter = direction
+          ? { direction: direction as "FORWARD" | "BACKWARD" }
+          : {};
+
+        const data = await Routes.find(filter, {
+          _id: 1,
+          name: 1,
+          number: 1,
+          direction: 1,
+        })
+          .sort({ number: 1, name: 1 })
+          .lean()
+          .exec();
+
+        return res.status(OK).json({ data });
       } catch (error) {
         return res.status(BAD_REQUEST).json({ error });
       }

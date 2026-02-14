@@ -53,6 +53,11 @@
         }
       ]
     ],
+    "extra": {
+      "apiBaseUrl": "http://localhost:8080/api/v1",
+      "mqttBrokerUrl": "wss://localhost:8084/mqtt",
+      "mqttPublishIntervalMs": 3000
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

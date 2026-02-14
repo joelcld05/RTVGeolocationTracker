@@ -26,12 +26,14 @@ type UseMqttPublisherOptions = {
   qos?: 0 | 1 | 2;
   keepalive?: number;
   reconnectPeriodMs?: number;
+  minPublishIntervalMs?: number;
 };
 
 const DEFAULT_TOPIC_PREFIX = "gps";
 const DEFAULT_CLIENT_PREFIX = "BUS_";
 const DEFAULT_KEEPALIVE = 30;
 const DEFAULT_RECONNECT_MS = 1000;
+const DEFAULT_PUBLISH_INTERVAL_MS = 3000;
 
 const allowedDirections = new Set(["FORWARD", "BACKWARD"] as const);
 
@@ -91,10 +93,10 @@ async function loadMqttModule() {
 function resolveBrokerUrl(override?: string) {
   const fromConfig =
     override ??
-    Constants.expoConfig?.extra?.mqttBrokerUrl ??
-    process.env.EXPO_PUBLIC_MQTT_BROKER_URL;
+    process.env.EXPO_PUBLIC_MQTT_BROKER_URL ??
+    Constants.expoConfig?.extra?.mqttBrokerUrl;
 
-  let brokerUrl = fromConfig ?? "ws://localhost:8083/mqtt";
+  let brokerUrl = fromConfig ?? "wss://localhost:8084/mqtt";
 
   if (brokerUrl.startsWith("mqtt://") || brokerUrl.startsWith("mqtts://")) {
     const secure = brokerUrl.startsWith("mqtts://");
@@ -106,6 +108,15 @@ function resolveBrokerUrl(override?: string) {
   }
 
   return brokerUrl;
+}
+
+function parsePublishIntervalMs(value?: number | string | null) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_PUBLISH_INTERVAL_MS;
+  }
+
+  return Math.min(5000, Math.max(2000, Math.floor(parsed)));
 }
 
 function sanitizeTopicSegment(value: string) {
@@ -132,6 +143,7 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
     qos = 0,
     keepalive = DEFAULT_KEEPALIVE,
     reconnectPeriodMs = DEFAULT_RECONNECT_MS,
+    minPublishIntervalMs,
   } = options;
 
   const brokerUrl = useMemo(
@@ -141,9 +153,18 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
   const caPem = useMemo(
     () =>
       caOverride ??
-      Constants.expoConfig?.extra?.mqttCaPem ??
-      process.env.EXPO_PUBLIC_MQTT_CA_PEM,
+      process.env.EXPO_PUBLIC_MQTT_CA_PEM ??
+      Constants.expoConfig?.extra?.mqttCaPem,
     [caOverride],
+  );
+  const publishIntervalMs = useMemo(
+    () =>
+      parsePublishIntervalMs(
+        minPublishIntervalMs ??
+          process.env.EXPO_PUBLIC_MQTT_PUBLISH_INTERVAL_MS ??
+          Constants.expoConfig?.extra?.mqttPublishIntervalMs,
+      ),
+    [minPublishIntervalMs],
   );
   const normalizedDirection = useMemo(
     () => normalizeDirection(direction),
@@ -152,6 +173,7 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
 
   const clientRef = useRef<MqttClient | null>(null);
   const connectionKeyRef = useRef<string>("");
+  const lastPublishedAtRef = useRef(0);
   const [status, setStatus] = useState<MqttStatus>("idle");
   const isMountedRef = useRef(true);
 
@@ -237,6 +259,7 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
     brokerUrl,
     normalizedDirection,
     clientIdPrefix,
+    caPem,
     keepalive,
     reconnectPeriodMs,
     updateStatus,
@@ -282,6 +305,14 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
         return false;
       }
 
+      const publishTimestamp = payload.timestamp ?? Date.now();
+      if (
+        lastPublishedAtRef.current > 0 &&
+        publishTimestamp - lastPublishedAtRef.current < publishIntervalMs
+      ) {
+        return false;
+      }
+
       const normalizedBusId = sanitizeTopicSegment(busId);
       const normalizedRouteId = sanitizeTopicSegment(routeId);
       const topic = `${topicPrefix}/${normalizedRouteId}/${normalizedDirection}/${normalizedBusId}`;
@@ -293,11 +324,12 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
         lat: payload.lat,
         lng: payload.lng,
         speed: speed < 0 ? 0 : speed,
-        timestamp: payload.timestamp ?? Date.now(),
+        timestamp: publishTimestamp,
         ...(heading === undefined ? {} : { heading }),
       };
 
       client.publish(topic, JSON.stringify(message), { qos, retain: false });
+      lastPublishedAtRef.current = publishTimestamp;
       return true;
     },
     [
@@ -308,6 +340,7 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
       topicPrefix,
       normalizedDirection,
       qos,
+      publishIntervalMs,
     ],
   );
 
@@ -315,6 +348,7 @@ export function useMqttPublisher(options: UseMqttPublisherOptions = {}) {
     status,
     brokerUrl,
     platform: Platform.OS,
+    publishIntervalMs,
     publishLocation,
   };
 }

@@ -155,14 +155,26 @@ Audit status updated from current codebase on `2026-02-14`:
 ## 8. Integrate Bus Mobile App (Publisher)
 
 - [x] Ensure bus authentication returns JWT with `sub`, `routeId`, `direction`, `exp`.
-- [ ] Connect app to EMQX over TLS.
-- [ ] Publish GPS every `2-5s` to exact topic format.
+- [x] Connect app to EMQX over TLS.
+- [x] Publish GPS every `2-5s` to exact topic format.
 - [x] Add retry/backoff for unstable network.
 - [x] Guard against publishing when auth/session is invalid.
 - [x] Use route direction dynamically from bus/route data (currently hardcoded `FORWARD`).
-- [ ] Replace hardcoded app API endpoint with env-driven config.
-- [ ] Add publish cadence throttle to meet MVP interval target (`2-5s`).
-- [ ] Replace free-text route registration with route picker backed by backend route catalog.
+- [x] Replace hardcoded app API endpoint with env-driven config.
+- [x] Add publish cadence throttle to meet MVP interval target (`2-5s`).
+- [x] Replace free-text route registration with route picker backed by backend route catalog.
+
+## 8A. Show Neighbors in Bus Mobile App
+
+- [ ] Reuse route-channel payload `neighbors` contract in bus app subscriber flow.
+- [ ] Connect bus app to WebSocket service with JWT (read-only for own route+direction).
+- [ ] Subscribe bus app to `route:{routeId}:{direction}` channel.
+- [ ] Filter out current bus from neighbor rendering (`ahead` / `behind` should show other buses only).
+- [ ] Render `ahead` and `behind` neighbor cards with `busId`, distance, and freshness timestamp.
+- [ ] Show live map markers for neighbor buses (`ahead`/`behind`) and update positions in real time.
+- [ ] Mark stale neighbors (e.g., `>15s` without updates) and handle reconnect/resubscribe with re-sync.
+- [ ] Add loading/empty/error states for the neighbor panel.
+- [ ] Add integration test scenario: 3+ buses same route+direction and validate neighbor order/distance updates.
 
 ## 9. Integrate Passenger Client (Subscriber)
 

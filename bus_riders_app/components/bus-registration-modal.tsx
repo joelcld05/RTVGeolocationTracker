@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -25,7 +25,7 @@ import { useAuth, type BusData } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { useNotification } from "@/contexts/notification-context";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { _post } from "@/libs/request";
+import { _get, _post } from "@/libs/request";
 
 type BusRegistrationModalProps = {
   visible: boolean;
@@ -36,6 +36,22 @@ type BusRegistrationFormProps = {
   visible?: boolean;
   onComplete?: () => void;
   onLogout?: () => void;
+};
+
+type RouteCatalogItem = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  number?: string;
+  direction?: string;
+};
+
+type RouteOption = {
+  id: string;
+  name: string;
+  number: string;
+  direction: "FORWARD" | "BACKWARD";
+  label: string;
 };
 
 const emptyBusData: BusData = {
@@ -72,7 +88,8 @@ export function BusRegistrationForm({
   const theme = useAppTheme();
   const { t } = useLanguage();
   const { notify } = useNotification();
-  const { busData, updateBusData, refreshSession, signOut } = useAuth();
+  const { busData, routeId, updateBusData, refreshSession, signOut } =
+    useAuth();
   const styles = useMemo(() => createStyles(theme), [theme.mode]);
   const insets = useSafeAreaInsets();
   const { f_post: saveBusData } = _post({
@@ -80,6 +97,79 @@ export function BusRegistrationForm({
     useAuth: true,
     saveData: false,
   });
+  const { f_get: fetchRouteCatalog } = _get<{
+    data?: RouteCatalogItem[];
+  } | RouteCatalogItem[]>({
+    url: "/bus/routes",
+    useAuth: true,
+    saveData: false,
+    onLoad: false,
+  });
+  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
+  const [isLoadingRoutes, setIsLoadingRoutes] = useState(false);
+  const [routeCatalogError, setRouteCatalogError] = useState<string | null>(
+    null,
+  );
+  const [isRoutePickerOpen, setIsRoutePickerOpen] = useState(false);
+  const hasLoadedRouteCatalogRef = useRef(false);
+
+  const parseRouteOptions = useCallback((payload: unknown): RouteOption[] => {
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+
+    return payload
+      .map((entry): RouteOption | null => {
+        const item = entry as RouteCatalogItem;
+        const idValue = String(item?._id ?? item?.id ?? "").trim();
+        if (!idValue) {
+          return null;
+        }
+
+        const numberValue = String(item?.number ?? "").trim();
+        const nameValue = String(item?.name ?? "").trim();
+        const directionValue =
+          String(item?.direction ?? "")
+            .trim()
+            .toUpperCase() === "BACKWARD"
+            ? "BACKWARD"
+            : "FORWARD";
+        const baseLabel = [numberValue, nameValue].filter(Boolean).join(" - ");
+
+        return {
+          id: idValue,
+          number: numberValue,
+          name: nameValue,
+          direction: directionValue,
+          label: `${baseLabel || idValue} (${directionValue})`,
+        };
+      })
+      .filter((item): item is RouteOption => item !== null);
+  }, []);
+
+  const loadRouteCatalog = useCallback(async () => {
+    setIsLoadingRoutes(true);
+    setRouteCatalogError(null);
+    try {
+      const response = await fetchRouteCatalog();
+      const rawList = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : [];
+      const parsed = parseRouteOptions(rawList);
+      setRouteOptions(parsed);
+      if (parsed.length === 0) {
+        setRouteCatalogError(t("busRegistration.noRoutesAvailable"));
+      }
+    } catch (error) {
+      setRouteOptions([]);
+      setRouteCatalogError(t("busRegistration.routeLoadError"));
+      console.error("Failed to load route catalog", error);
+    } finally {
+      setIsLoadingRoutes(false);
+    }
+  }, [fetchRouteCatalog, parseRouteOptions, t]);
 
   const validationSchema = useMemo(
     () =>
@@ -94,7 +184,10 @@ export function BusRegistrationForm({
   );
 
   const formik = useFormik({
-    initialValues: busData ?? emptyBusData,
+    initialValues: {
+      ...(busData ?? emptyBusData),
+      route: routeId ?? "",
+    },
     validationSchema,
     validateOnMount: true,
     enableReinitialize: true,
@@ -123,17 +216,44 @@ export function BusRegistrationForm({
       }
     },
   });
+  const { resetForm } = formik;
 
   useEffect(() => {
-    if (visible) {
-      formik.resetForm({ values: busData ?? emptyBusData });
+    if (!visible) {
+      hasLoadedRouteCatalogRef.current = false;
+      setIsRoutePickerOpen(false);
+      return;
     }
-  }, [busData, formik.resetForm, visible]);
+
+    resetForm({
+      values: {
+        ...(busData ?? emptyBusData),
+        route: routeId ?? "",
+      },
+    });
+    setIsRoutePickerOpen(false);
+  }, [busData, resetForm, routeId, visible]);
+
+  useEffect(() => {
+    if (!visible || hasLoadedRouteCatalogRef.current) {
+      return;
+    }
+
+    hasLoadedRouteCatalogRef.current = true;
+    void loadRouteCatalog();
+  }, [loadRouteCatalog, visible]);
 
   const isDisabled = useMemo(
     () => formik.isSubmitting || !formik.isValid,
     [formik.isSubmitting, formik.isValid],
   );
+
+  const selectedRouteOption = useMemo(
+    () => routeOptions.find((route) => route.id === formik.values.route),
+    [formik.values.route, routeOptions],
+  );
+  const routeDisplayValue =
+    selectedRouteOption?.label ?? (routeId ? busData?.route : "") ?? "";
 
   const nameError = formik.touched.name ? formik.errors.name : undefined;
   const routeError = formik.touched.route ? formik.errors.route : undefined;
@@ -196,26 +316,88 @@ export function BusRegistrationForm({
             <Text style={styles.label}>
               {t("busRegistration.busRouteLabel")}
             </Text>
-            <View
-              style={[styles.inputWithIcon, routeError && styles.inputError]}
+            <Pressable
+              onPress={() => {
+                formik.setFieldTouched("route", true, false);
+                setIsRoutePickerOpen((previous) => !previous);
+              }}
+              style={[
+                styles.inputWithIcon,
+                routeError && styles.inputError,
+                isRoutePickerOpen && styles.inputWithIconFocused,
+              ]}
             >
-              <TextInput
-                value={formik.values.route}
-                onChangeText={formik.handleChange("route")}
-                onBlur={formik.handleBlur("route")}
-                placeholder={t("busRegistration.busRoutePlaceholder")}
-                placeholderTextColor={theme.textSubtle}
-                autoCapitalize="words"
-                style={styles.inputText}
-              />
+              <Text
+                style={[
+                  styles.inputText,
+                  !routeDisplayValue && styles.inputPlaceholderText,
+                ]}
+              >
+                {routeDisplayValue || t("busRegistration.busRoutePlaceholder")}
+              </Text>
               <View style={styles.inputIcon}>
                 <Ionicons
-                  name="chevron-down"
+                  name={isRoutePickerOpen ? "chevron-up" : "chevron-down"}
                   size={16}
                   color={theme.textSubtle}
                 />
               </View>
-            </View>
+            </Pressable>
+
+            {isRoutePickerOpen ? (
+              <View style={styles.routePickerPanel}>
+                {isLoadingRoutes ? (
+                  <View style={styles.routePickerStateRow}>
+                    <ActivityIndicator color={theme.accent} size="small" />
+                    <Text style={styles.routePickerStateText}>
+                      {t("busRegistration.loadingRoutes")}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {!isLoadingRoutes && routeCatalogError ? (
+                  <Text style={styles.routePickerErrorText}>
+                    {routeCatalogError}
+                  </Text>
+                ) : null}
+
+                {!isLoadingRoutes && !routeCatalogError ? (
+                  <ScrollView
+                    nestedScrollEnabled
+                    style={styles.routePickerList}
+                    contentContainerStyle={styles.routePickerListContent}
+                  >
+                    {routeOptions.map((routeOption) => {
+                      const isSelected =
+                        formik.values.route === routeOption.id;
+                      return (
+                        <Pressable
+                          key={routeOption.id}
+                          onPress={() => {
+                            formik.setFieldValue("route", routeOption.id);
+                            formik.setFieldTouched("route", true, false);
+                            setIsRoutePickerOpen(false);
+                          }}
+                          style={[
+                            styles.routePickerItem,
+                            isSelected && styles.routePickerItemSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.routePickerItemText,
+                              isSelected && styles.routePickerItemTextSelected,
+                            ]}
+                          >
+                            {routeOption.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
+              </View>
+            ) : null}
             {routeError ? (
               <Text style={styles.errorText}>{routeError}</Text>
             ) : null}
@@ -404,12 +586,18 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
       flexDirection: "row",
       alignItems: "center",
     },
+    inputWithIconFocused: {
+      borderColor: theme.accent,
+    },
     inputText: {
       flex: 1,
       padding: 0,
       fontSize: 16,
       color: theme.text,
       fontFamily: fontFamilies.body,
+    },
+    inputPlaceholderText: {
+      color: theme.textSubtle,
     },
     inputIcon: {
       width: 28,
@@ -418,6 +606,57 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>) =>
       backgroundColor: theme.surfaceAlt,
       alignItems: "center",
       justifyContent: "center",
+    },
+    routePickerPanel: {
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 16,
+      backgroundColor: theme.surface,
+      overflow: "hidden",
+    },
+    routePickerStateRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+    },
+    routePickerStateText: {
+      marginLeft: 10,
+      color: theme.textMuted,
+      fontSize: 14,
+      fontFamily: fontFamilies.body,
+    },
+    routePickerErrorText: {
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      color: theme.danger,
+      fontSize: 13,
+      fontFamily: fontFamilies.body,
+    },
+    routePickerList: {
+      maxHeight: 220,
+    },
+    routePickerListContent: {
+      paddingVertical: 4,
+    },
+    routePickerItem: {
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    routePickerItemSelected: {
+      backgroundColor: theme.accentSoft,
+    },
+    routePickerItemText: {
+      color: theme.text,
+      fontSize: 14,
+      fontFamily: fontFamilies.body,
+    },
+    routePickerItemTextSelected: {
+      color: theme.accent,
+      fontFamily: fontFamilies.brand,
     },
     errorText: {
       marginTop: 6,

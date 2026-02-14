@@ -179,10 +179,8 @@ class AuthController {
                 const logUserIn = await instance.saveParseObject(user._doc);
                 logUserIn.role = user?._roles[0]?.code || PublicRole;
                 logUserIn.hd_role = user?._roles[0]?.hd_role || "USER";
-                const { tokenPayload, bus } = await attachBusClaimsToTokenPayload(
-                  logUserIn._id,
-                  logUserIn,
-                );
+                const { tokenPayload, bus } =
+                  await attachBusClaimsToTokenPayload(logUserIn._id, logUserIn);
                 const token = signToken(tokenPayload, true);
                 await createSession(req, user._id, {
                   ...token,

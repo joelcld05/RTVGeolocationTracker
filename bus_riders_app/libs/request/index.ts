@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import { jwtDecode } from "./jwtDecode";
 import axios from "axios";
 
@@ -56,7 +57,21 @@ const defaultHeaders: HeadersMap = { "Content-Type": "application/json" };
 const MAX_RETRIES = 3;
 const NO_RETRY: unique symbol = Symbol("NO_RETRY");
 
-let url_endpoint = `http://192.168.1.155:8080/api/v1`;
+const resolveApiEndpoint = () => {
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const fromConfig = Constants.expoConfig?.extra?.apiBaseUrl;
+  const raw = (
+    typeof fromEnv === "string" && fromEnv.trim().length > 0
+      ? fromEnv
+      : typeof fromConfig === "string" && fromConfig.trim().length > 0
+        ? fromConfig
+        : "http://localhost:8080/api/v1"
+  ).trim();
+
+  return raw.replace(/\/+$/, "");
+};
+
+let url_endpoint = resolveApiEndpoint();
 
 const buildHeaders = (
   token: string | null,
