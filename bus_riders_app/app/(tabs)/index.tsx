@@ -63,6 +63,7 @@ export default function HomeScreen() {
     busData,
     hasBusInfo,
     userData,
+    isOn,
   } = useAuth();
   const currentDirection =
     typeof userData === "object" &&
@@ -73,16 +74,19 @@ export default function HomeScreen() {
       ? "BACKWARD"
       : "FORWARD";
 
+  const isApproved = isBusDataComplete && busApprovalStatus === "approved";
+  const isTrackingEnabled = isApproved && isOn === 1;
+  const showNeighborSheet = isApproved && isTrackingEnabled;
+
   const { publishLocation } = useMqttPublisher({
     busId,
     routeId,
     direction: currentDirection,
-    enabled: isBusDataComplete,
+    enabled: isTrackingEnabled,
   });
   const theme = useAppTheme();
   const { t } = useLanguage();
   const styles = useMemo(() => createStyles(theme), [theme.mode]);
-  const isApproved = isBusDataComplete && busApprovalStatus === "approved";
   const currentRouteName = busData?.route?.trim() || "Albrook - Transistmica";
 
   const isPendingApproval = isBusDataComplete && !isApproved;
@@ -296,14 +300,14 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.mapArea, !isApproved && styles.mapAreaFull]}>
+      <View style={[styles.mapArea, !showNeighborSheet && styles.mapAreaFull]}>
         <MapView
           ref={mapRef}
           style={styles.map}
           initialRegion={initialRegion}
           onRegionChangeComplete={setMapRegion}
           onUserLocationChange={
-            isApproved ? handleUserLocationChange : undefined
+            isTrackingEnabled ? handleUserLocationChange : undefined
           }
           showsUserLocation={isApproved && hasLocationPermission}
           showsMyLocationButton={isApproved && hasLocationPermission}
@@ -394,7 +398,7 @@ export default function HomeScreen() {
         ) : null}
       </View>
 
-      {isApproved ? (
+      {showNeighborSheet ? (
         <View style={styles.bottomSheet}>
           <View style={styles.sheetHandle} />
           <ScrollView

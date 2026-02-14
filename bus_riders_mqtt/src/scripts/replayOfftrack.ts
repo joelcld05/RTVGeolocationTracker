@@ -22,12 +22,13 @@ function toRadians(value: number): number {
   return (value * Math.PI) / 180;
 }
 
-function offsetMeters(point: Point, eastMeters: number, northMeters: number): Point {
+function offsetMeters(
+  point: Point,
+  eastMeters: number,
+  northMeters: number,
+): Point {
   const metersPerDegLat = 111_320;
-  const metersPerDegLng = Math.max(
-    1,
-    111_320 * Math.cos(toRadians(point.lat)),
-  );
+  const metersPerDegLng = Math.max(1, 111_320 * Math.cos(toRadians(point.lat)));
 
   return {
     lat: point.lat + northMeters / metersPerDegLat,
@@ -77,7 +78,7 @@ async function main(): Promise<void> {
     const busKey = `bus:${busId}`;
 
     const routeStart: Point = { lat: 8.9824, lng: -79.5199 };
-    const routeMid: Point = { lat: 8.9850, lng: -79.5199 };
+    const routeMid: Point = { lat: 8.985, lng: -79.5199 };
     const routeEnd: Point = { lat: 8.9874, lng: -79.5199 };
     const shape: Point[] = [routeStart, routeMid, routeEnd];
     const basePoint = lerpPoint(routeStart, routeEnd, 0.55);
@@ -106,7 +107,12 @@ async function main(): Promise<void> {
 
     await keydb.ping();
 
-    await keydb.multi().set(shapeKey, JSON.stringify(shape)).del(routeKey).del(busKey).exec();
+    await keydb
+      .multi()
+      .set(shapeKey, JSON.stringify(shape))
+      .del(routeKey)
+      .del(busKey)
+      .exec();
 
     let timestamp = Date.now();
 
@@ -124,7 +130,8 @@ async function main(): Promise<void> {
       );
 
       assertOrThrow(
-        projection.deviationMeters !== null && Number.isFinite(projection.deviationMeters),
+        projection.deviationMeters !== null &&
+          Number.isFinite(projection.deviationMeters),
         `${label}: projection deviation is missing`,
       );
 
@@ -154,9 +161,16 @@ async function main(): Promise<void> {
     }
 
     const onRoute = await feed("on_route", offsetMeters(basePoint, 6, 0), 22);
-    assertOrThrow(onRoute.event.isOffTrack === false, "on_route should be on-track");
+    assertOrThrow(
+      onRoute.event.isOffTrack === false,
+      "on_route should be on-track",
+    );
 
-    const nearRoute = await feed("near_route", offsetMeters(basePoint, 18, 0), 24);
+    const nearRoute = await feed(
+      "near_route",
+      offsetMeters(basePoint, 18, 0),
+      24,
+    );
     assertOrThrow(
       nearRoute.event.isOffTrack === false,
       "near_route should still be on-track",
@@ -171,7 +185,9 @@ async function main(): Promise<void> {
       offtrackEnter.event.isOffTrack === true,
       "offtrack_enter should set isOffTrack=true",
     );
-    const firstOfftrackSinceTs = parseOptionalNumber(offtrackEnter.busState.offTrackSinceTs);
+    const firstOfftrackSinceTs = parseOptionalNumber(
+      offtrackEnter.busState.offTrackSinceTs,
+    );
     assertOrThrow(
       firstOfftrackSinceTs === offtrackEnter.event.timestamp,
       "offtrack_enter should set offTrackSinceTs to current event timestamp",
@@ -186,7 +202,9 @@ async function main(): Promise<void> {
       offtrackHold.event.isOffTrack === true,
       "offtrack_hold should remain off-track while deviation > recovery threshold",
     );
-    const holdOfftrackSinceTs = parseOptionalNumber(offtrackHold.busState.offTrackSinceTs);
+    const holdOfftrackSinceTs = parseOptionalNumber(
+      offtrackHold.busState.offTrackSinceTs,
+    );
     assertOrThrow(
       holdOfftrackSinceTs === firstOfftrackSinceTs,
       "offtrack_hold should keep original offTrackSinceTs",
@@ -215,7 +233,9 @@ async function main(): Promise<void> {
       reentered.event.isOffTrack === true,
       "offtrack_reenter should set isOffTrack=true again",
     );
-    const secondOfftrackSinceTs = parseOptionalNumber(reentered.busState.offTrackSinceTs);
+    const secondOfftrackSinceTs = parseOptionalNumber(
+      reentered.busState.offTrackSinceTs,
+    );
     assertOrThrow(
       secondOfftrackSinceTs === reentered.event.timestamp,
       "offtrack_reenter should set offTrackSinceTs to re-entry timestamp",
@@ -233,7 +253,9 @@ async function main(): Promise<void> {
       "final persisted isOffTrack should be true",
     );
 
-    console.log("[replay:offtrack] PASS: threshold + recovery behavior validated");
+    console.log(
+      "[replay:offtrack] PASS: threshold + recovery behavior validated",
+    );
 
     if (!keepKeys) {
       await keydb

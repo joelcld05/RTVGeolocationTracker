@@ -33,6 +33,7 @@ import {
   signToken,
 } from "@/services/Authentication";
 import _Role, { AffiliateRole, PublicRole, UserRole } from "@/models/_Role";
+import RouteAdminScope from "@/models/Backoffice/routeAdminScope";
 import Bus from "@/models/Bus/bus";
 import { Request, Response, Router, NextFunction } from "express";
 import _ModelRepo from "@/services/repository/_ModelRepo";
@@ -47,6 +48,12 @@ import passport from "passport";
 import axios from "axios";
 
 const ALLOWED_DIRECTIONS = new Set(["FORWARD", "BACKWARD"]);
+const ADMIN_ROLE_CODES = new Set([
+  "ADMIN",
+  "SYSTEM",
+  "ROUTE_ADMIN",
+  "SUPER_ADMIN",
+]);
 
 function normalizeDirection(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -96,16 +103,99 @@ function buildMqttClaimsFromBus(bus: any): Record<string, unknown> {
   };
 }
 
+function isAdminPayload(payload: Record<string, unknown>): boolean {
+  const role = String(payload.role ?? "")
+    .trim()
+    .toUpperCase();
+  const hdRole = String(payload.hd_role ?? "")
+    .trim()
+    .toUpperCase();
+  return ADMIN_ROLE_CODES.has(role) || hdRole === "SUPPORT";
+}
+
+function expandScopeDirections(directions: unknown): string[] {
+  const values = Array.isArray(directions) ? directions : [];
+  const expanded = new Set<string>();
+
+  for (const directionRaw of values) {
+    const normalized = String(directionRaw ?? "")
+      .trim()
+      .toUpperCase();
+    if (normalized === "BOTH") {
+      expanded.add("FORWARD");
+      expanded.add("BACKWARD");
+      continue;
+    }
+    if (ALLOWED_DIRECTIONS.has(normalized)) {
+      expanded.add(normalized);
+    }
+  }
+
+  return Array.from(expanded);
+}
+
+async function buildAdminRouteScopeClaims(
+  userId: unknown,
+  payload: Record<string, unknown>,
+) {
+  if (!isAdminPayload(payload)) {
+    return {};
+  }
+
+  const role = String(payload.role ?? "")
+    .trim()
+    .toUpperCase();
+  const bypassScopedRoles = new Set(["SUPER_ADMIN", "SYSTEM"]);
+  if (bypassScopedRoles.has(role)) {
+    return {};
+  }
+
+  const scopes = await RouteAdminScope.find(
+    {
+      userId,
+      active: true,
+    },
+    {
+      routeId: 1,
+      directions: 1,
+    },
+  )
+    .lean()
+    .exec();
+
+  if (!Array.isArray(scopes) || scopes.length === 0) {
+    // Keep legacy behavior until assignments are configured.
+    return {};
+  }
+
+  const routeScopes = new Set<string>();
+  for (const scope of scopes) {
+    const routeId = String(scope?.routeId ?? "").trim();
+    if (!routeId) continue;
+
+    const directions = expandScopeDirections(scope?.directions);
+    for (const direction of directions) {
+      routeScopes.add(`${routeId}:${direction}`);
+    }
+  }
+
+  return { routeScopes: Array.from(routeScopes) };
+}
+
 async function attachBusClaimsToTokenPayload(
   userId: unknown,
   payload: Record<string, unknown>,
 ) {
-  const bus = await Bus.findOne({ userId }).populate("route");
+  const [bus, adminScopeClaims] = await Promise.all([
+    Bus.findOne({ userId }).populate("route"),
+    buildAdminRouteScopeClaims(userId, payload),
+  ]);
   return {
     bus,
     tokenPayload: {
       ...payload,
       ...buildMqttClaimsFromBus(bus),
+      ...adminScopeClaims,
     },
   };
 }

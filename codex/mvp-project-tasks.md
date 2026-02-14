@@ -22,6 +22,7 @@ Audit status updated from current codebase on `2026-02-14`:
   - [ ] System computes `progress` + `distanceAlongRoute`.
   - [x] System returns `3 ahead` + `3 behind`.
   - [ ] Clients receive live updates by route+direction channel.
+  - [ ] Route admin backoffice shows real-time bus locations on map for assigned routes/directions only.
 - [ ] Mark out-of-scope items for later (Kafka/Mongo history, anomaly detection, playback, delta updates).
 
 ## 2. Define Contracts (Single Source of Truth)
@@ -166,15 +167,25 @@ Audit status updated from current codebase on `2026-02-14`:
 
 ## 8A. Show Neighbors in Bus Mobile App
 
-- [ ] Reuse route-channel payload `neighbors` contract in bus app subscriber flow.
-- [ ] Connect bus app to WebSocket service with JWT (read-only for own route+direction).
-- [ ] Subscribe bus app to `route:{routeId}:{direction}` channel.
-- [ ] Filter out current bus from neighbor rendering (`ahead` / `behind` should show other buses only).
-- [ ] Render `ahead` and `behind` neighbor cards with `busId`, distance, and freshness timestamp.
-- [ ] Show live map markers for neighbor buses (`ahead`/`behind`) and update positions in real time.
-- [ ] Mark stale neighbors (e.g., `>15s` without updates) and handle reconnect/resubscribe with re-sync.
-- [ ] Add loading/empty/error states for the neighbor panel.
-- [ ] Add integration test scenario: 3+ buses same route+direction and validate neighbor order/distance updates.
+- [x] Reuse route-channel payload `neighbors` contract in bus app subscriber flow.
+- [x] Connect bus app to WebSocket service with JWT (read-only for own route+direction).
+- [x] Subscribe bus app to `route:{routeId}:{direction}` channel.
+- [x] Filter out current bus from neighbor rendering (`ahead` / `behind` should show other buses only).
+- [x] Render `ahead` and `behind` neighbor cards with `busId`, distance, and freshness timestamp.
+- [x] Show live map markers for neighbor buses (`ahead`/`behind`) and update positions in real time.
+- [x] Mark stale neighbors (e.g., `>15s` without updates) and handle reconnect/resubscribe with re-sync.
+- [x] Add loading/empty/error states for the neighbor panel.
+- [x] Add integration test scenario: 3+ buses same route+direction and validate neighbor order/distance updates.
+
+## 8B. Driver Tracking On/Off + Manual Route Finish
+
+- [x] Add bus app UI control to turn tracking `ON/OFF` during operation.
+- [x] When tracking is `OFF`, stop GPS publish loop and route-channel subscription updates for that bus session.
+- [x] Add confirmation flow in app for `Finish Route` action to avoid accidental stop.
+- [x] Add backend endpoint/service action to allow manual route finish at any time (`tripStatus=ARRIVED`, `arrivalTimestamp=now`).
+- [x] Broadcast manual finish update through realtime channels so riders/admins see status change immediately.
+- [x] Define reset behavior to start a new trip after manual finish (set `tripStatus=IN_ROUTE`, clear `arrivalTimestamp` on next start).
+- [ ] Add integration scenario: toggle OFF/ON and manual finish, verifying publish stop/resume and correct trip status transitions.
 
 ## 9. Integrate Passenger Client (Subscriber)
 
@@ -194,11 +205,25 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Choose and integrate map stack (Mapbox GL or Leaflet) for real-time bus visualization.
 - [ ] Implement route-admin authentication flow (login + logout + token refresh).
 - [ ] Enforce role-based access for `ROUTE_ADMIN` users only.
+- [ ] Create route-admin scope model `bo_route_admin_scope` to persist admin-to-route assignments.
+  - [ ] Fields: `userId`, `routeId`, `directions`, `permissions`, `active`, `assignedBy`, timestamps.
+  - [ ] Add unique index `(userId, routeId)` and indexes for `active` and `routeId`.
 - [ ] Restrict route visibility so each admin can only access assigned routes.
+- [ ] Add assignment management APIs (super-admin only):
+  - [ ] `POST /api/v1/backoffice/route-admin-scope` (assign scope).
+  - [ ] `PUT /api/v1/backoffice/route-admin-scope/:id` (update scope, direction, active flag).
+  - [ ] `DELETE /api/v1/backoffice/route-admin-scope/:id` (revoke scope).
+- [ ] Add assigned-route API for route admins:
+  - [ ] `GET /api/v1/backoffice/routes/assigned` (returns assigned routes only).
+- [ ] Enforce assignment-based filtering in route and snapshot APIs (`active=true` scopes only).
+- [ ] Enforce assignment-based WebSocket authorization:
+  - [ ] Allow subscribe to `route:{routeId}:{direction}` only if route is assigned and direction is allowed.
+- [ ] Add auditability for scope changes (`assignedBy`, timestamps, before/after log).
 - [ ] Build route selector UI (assigned routes only).
 - [ ] Build direction filter/toggle (`FORWARD`, `BACKWARD`, `BOTH`).
 - [ ] Add initial snapshot API call to fetch all active buses for selected route+direction.
 - [ ] Connect to WebSocket service with JWT and subscribe to route channels.
+- [ ] Ensure map visibility is assignment-scoped: show live bus location only for authorized route+direction.
 - [ ] Support dual subscription when `BOTH` directions are selected.
 - [ ] Maintain in-memory bus store keyed by `busId` with latest telemetry.
 - [ ] Render all buses from the selected route as map markers with last-known location.
@@ -223,6 +248,8 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Auth + access control:
   - [ ] Implement login/logout with JWT persistence and refresh handling.
   - [ ] Enforce `ROUTE_ADMIN` role and route assignment restrictions.
+  - [ ] Implement `bo_route_admin_scope` persistence layer and assignment queries.
+  - [ ] Implement `GET /backoffice/routes/assigned` for the admin route selector.
 - [ ] Route monitoring UI:
   - [ ] Build assigned-route selector and direction toggle (`FORWARD`/`BACKWARD`/`BOTH`).
   - [ ] Fetch initial snapshot of active buses for selected route+direction.
@@ -315,6 +342,9 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Security and access validation:
   - [ ] Verify route admin cannot subscribe to unassigned routes/directions.
   - [ ] Verify unauthorized users cannot access backoffice route channels.
+  - [ ] Verify `GET /backoffice/routes/assigned` never returns unassigned routes.
+  - [ ] Verify control/scope-protected endpoints reject operations on non-assigned routes.
+  - [ ] Verify revoked or `active=false` assignment blocks subscription/actions immediately.
 - [ ] Step 4 exit criteria:
   - [ ] Functional + integration checks pass for off-track, arrival detection, stale cleanup, and admin live-map visibility.
   - [ ] Backend and frontend owners sign off on MVP readiness.
@@ -351,6 +381,7 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Per route+direction bus ordering is correct.
 - [ ] `3 ahead / 3 behind` is accurate and stable.
 - [ ] Route admins can see current location of all buses assigned to the same route in the React backoffice.
+- [ ] Route admin assignments are persisted, enforced in API/WebSocket, and auditable.
 - [ ] Buses are marked `ARRIVED` accurately at route terminal polygon with low false positives.
 - [ ] Security controls (JWT + ACL + TLS) are active.
 - [ ] System operates reliably at initial target scale.

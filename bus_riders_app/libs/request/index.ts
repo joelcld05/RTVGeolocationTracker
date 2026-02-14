@@ -65,7 +65,7 @@ const resolveApiEndpoint = () => {
       ? fromEnv
       : typeof fromConfig === "string" && fromConfig.trim().length > 0
         ? fromConfig
-        : "http://localhost:8080/api/v1"
+        : "http://192.168.1.155:8080/api/v1"
   ).trim();
 
   return raw.replace(/\/+$/, "");

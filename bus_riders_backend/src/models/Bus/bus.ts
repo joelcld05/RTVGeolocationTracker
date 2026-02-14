@@ -22,8 +22,8 @@ export const schema = new Schema(
     status: { type: Number, index: true, default: -1, enum: [-1, 0, 1] },
     name: { type: String, required: true, trim: true },
     number: { type: String, required: true, trim: true },
-    plate: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, trim: true },
+    plate: { type: String, trim: true },
+    phone: { type: String, trim: true },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

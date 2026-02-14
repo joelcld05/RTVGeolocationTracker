@@ -96,13 +96,13 @@ function resolveBrokerUrl(override?: string) {
     process.env.EXPO_PUBLIC_MQTT_BROKER_URL ??
     Constants.expoConfig?.extra?.mqttBrokerUrl;
 
-  let brokerUrl = fromConfig ?? "wss://localhost:8084/mqtt";
+  let brokerUrl = fromConfig ?? "wss://192.168.1.155:8084/mqtt";
 
   if (brokerUrl.startsWith("mqtt://") || brokerUrl.startsWith("mqtts://")) {
     const secure = brokerUrl.startsWith("mqtts://");
     const stripped = brokerUrl.replace(/^mqtts?:\/\//, "");
-    const hostPart = stripped.split("/")[0] ?? "localhost";
-    const hostname = hostPart.split(":")[0] ?? "localhost";
+    const hostPart = stripped.split("/")[0] ?? "192.168.1.155";
+    const hostname = hostPart.split(":")[0] ?? "192.168.1.155";
     const wsPort = secure ? 8084 : 8083;
     brokerUrl = `${secure ? "wss" : "ws"}://${hostname}:${wsPort}/mqtt`;
   }

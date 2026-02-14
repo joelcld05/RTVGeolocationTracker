@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import * as SecureStore from "expo-secure-store";
 import { jwtDecode } from "../libs/request/jwtDecode";
-import { _post, disconnectSession, setSession } from "@/libs/request";
+import { _post, _put, disconnectSession, setSession } from "@/libs/request";
 
 export type BusData = {
   name: string;
@@ -39,7 +39,9 @@ type AuthContextValue = {
   applySession: (response: AuthResponse) => Promise<void>;
   refreshSession: () => Promise<AuthResponse | null>;
   signOut: () => void;
-  trackingSwitch: () => void;
+  trackingSwitch: () => Promise<boolean>;
+  setTrackingEnabled: (enabled: boolean) => Promise<boolean>;
+  finishRoute: () => Promise<boolean>;
   userData: Record<string, unknown> | boolean;
   busData: BusData | null;
   busId: string | null;
@@ -50,6 +52,8 @@ type AuthContextValue = {
   setBusApprovalStatus: (status: BusApprovalStatus) => void;
   isBusDataComplete: boolean;
   isOn: number;
+  isTrackingUpdating: boolean;
+  isFinishingRoute: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -68,6 +72,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     url: "/auth/refresh",
     saveData: false,
     useAuth: false,
+  });
+  const { f_post: finishBusRoute, isLoading: isFinishingRoute } = _post({
+    url: "/bus/finish",
+    saveData: false,
+    useAuth: true,
+  });
+  const { f_put: updateBusStatus, isLoading: isTrackingUpdating } = _put({
+    url: "/bus",
+    saveData: false,
+    useAuth: true,
   });
   /*
    * Tracking switch state
@@ -220,10 +234,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBusId(identifiers.busId);
       setRouteId(identifiers.routeId);
       if (normalizedBus) {
-        let status: any =
-          (response?.bus?.status || -1) <= -1 ? "pending" : "approved";
-        setIsOn(response?.bus?.status || -1);
-        setBusApprovalStatus(status);
+        const rawStatus = response?.bus?.status;
+        const numericStatus =
+          typeof rawStatus === "number" && [-1, 0, 1].includes(rawStatus)
+            ? rawStatus
+            : -1;
+        setIsOn(numericStatus);
+        setBusApprovalStatus(numericStatus <= -1 ? "pending" : "approved");
       } else {
         setBusApprovalStatus("none");
         setIsOn(0);
@@ -286,9 +303,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void disconnectSession();
   }, []);
 
-  const trackingSwitch = useCallback(() => {
-    setIsOn((previousState) => (previousState === 1 ? 0 : 1));
-  }, []);
+  const setTrackingEnabled = useCallback(
+    async (enabled: boolean) => {
+      const nextStatus = enabled ? 1 : 0;
+      try {
+        const response = (await updateBusStatus({
+          body: { status: nextStatus },
+        })) as { saved?: boolean };
+        if (response?.saved === false) {
+          return false;
+        }
+
+        setIsOn(nextStatus);
+        return true;
+      } catch (error) {
+        console.error("Failed to update tracking status", error);
+        return false;
+      }
+    },
+    [updateBusStatus],
+  );
+
+  const trackingSwitch = useCallback(
+    async () => setTrackingEnabled(isOn !== 1),
+    [isOn, setTrackingEnabled],
+  );
+
+  const finishRoute = useCallback(async () => {
+    try {
+      const response = (await finishBusRoute({
+        body: {},
+      })) as { saved?: boolean; data?: { status?: number } };
+      if (response?.saved === false) {
+        return false;
+      }
+
+      const nextStatus =
+        typeof response?.data?.status === "number" ? response.data.status : 0;
+      setIsOn(nextStatus);
+      return true;
+    } catch (error) {
+      console.error("Failed to finish route", error);
+      return false;
+    }
+  }, [finishBusRoute]);
 
   const updateBusData = useCallback(
     (data: BusDataInput) => {
@@ -345,6 +403,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       applySession,
       refreshSession,
       trackingSwitch,
+      setTrackingEnabled,
+      finishRoute,
       userData,
       busData,
       busId,
@@ -355,6 +415,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBusApprovalStatus,
       isBusDataComplete,
       isOn,
+      isTrackingUpdating,
+      isFinishingRoute,
     }),
     [
       isAuthenticated,
@@ -363,6 +425,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshSession,
       signOut,
       trackingSwitch,
+      setTrackingEnabled,
+      finishRoute,
       userData,
       busData,
       busId,
@@ -373,6 +437,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setBusApprovalStatus,
       isBusDataComplete,
       isOn,
+      isTrackingUpdating,
+      isFinishingRoute,
     ],
   );
 

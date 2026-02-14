@@ -12,18 +12,20 @@ const keydbUrl = process.env.KEYDB_URL ?? "redis://localhost:6379";
 const routeId = process.env.REPLAY_ROUTE_ID ?? "REPLAY_ROUTE_01";
 const direction = (process.env.REPLAY_DIRECTION ?? "FORWARD").toUpperCase();
 const busId = process.env.REPLAY_BUS_ID ?? "REPLAY_BUS_01";
-const keepKeys = (process.env.REPLAY_KEEP_KEYS ?? "false").toLowerCase() === "true";
+const keepKeys =
+  (process.env.REPLAY_KEEP_KEYS ?? "false").toLowerCase() === "true";
 
 function toRadians(value: number): number {
   return (value * Math.PI) / 180;
 }
 
-function offsetMeters(point: Point, eastMeters: number, northMeters: number): Point {
+function offsetMeters(
+  point: Point,
+  eastMeters: number,
+  northMeters: number,
+): Point {
   const metersPerDegLat = 111_320;
-  const metersPerDegLng = Math.max(
-    1,
-    111_320 * Math.cos(toRadians(point.lat)),
-  );
+  const metersPerDegLng = Math.max(1, 111_320 * Math.cos(toRadians(point.lat)));
 
   return {
     lat: point.lat + northMeters / metersPerDegLat,
@@ -159,7 +161,11 @@ async function main(): Promise<void> {
       offsetMeters(lerpPoint(routeStart, routeEnd, 0.68), -3, -1),
     ];
     for (let i = 0; i < inRouteNoisyPoints.length; i += 1) {
-      const event = await feed(`in_route_noise_${i + 1}`, inRouteNoisyPoints[i], 26);
+      const event = await feed(
+        `in_route_noise_${i + 1}`,
+        inRouteNoisyPoints[i],
+        26,
+      );
       samples.push({ label: `in_route_noise_${i + 1}`, event });
     }
 
@@ -185,7 +191,11 @@ async function main(): Promise<void> {
     }
 
     // Start of new cycle should reset to IN_ROUTE.
-    const restartPoint = offsetMeters(lerpPoint(routeStart, routeEnd, 0.06), 2, 2);
+    const restartPoint = offsetMeters(
+      lerpPoint(routeStart, routeEnd, 0.06),
+      2,
+      2,
+    );
     samples.push({
       label: "new_cycle_restart",
       event: await feed("new_cycle_restart", restartPoint, 28),
@@ -215,7 +225,9 @@ async function main(): Promise<void> {
       "ARRIVED was never reached during dwell samples",
     );
 
-    const restartEvent = samples.find(({ label }) => label === "new_cycle_restart");
+    const restartEvent = samples.find(
+      ({ label }) => label === "new_cycle_restart",
+    );
     assertOrThrow(
       Boolean(restartEvent) && restartEvent!.event.tripStatus === "IN_ROUTE",
       "Trip status did not reset to IN_ROUTE after restart point",

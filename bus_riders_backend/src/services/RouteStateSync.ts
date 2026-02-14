@@ -138,7 +138,7 @@ class RouteStateSyncService {
       process.env.ROUTE_SYNC_INTERVAL_MS ?? "60000",
       10,
     );
-    this.#keydbUrl = process.env.KEYDB_URL ?? "redis://localhost:6379";
+    this.#keydbUrl = process.env.KEYDB_URL ?? "redis://192.168.1.155:6379";
     this.#clientName =
       process.env.ROUTE_SYNC_KEYDB_CLIENT_NAME ?? "bus_riders_backend:routes";
     this.#endzoneRadiusMeters = Number.parseFloat(
@@ -180,9 +180,12 @@ class RouteStateSyncService {
 
     await this.syncNow();
 
-    this.#timer = setInterval(() => {
-      void this.syncNow();
-    }, Math.max(5000, this.#intervalMs));
+    this.#timer = setInterval(
+      () => {
+        void this.syncNow();
+      },
+      Math.max(5000, this.#intervalMs),
+    );
   }
 
   async stop(): Promise<void> {
@@ -276,7 +279,9 @@ class RouteStateSyncService {
         synced += 1;
       }
 
-      const existingRouteKeys = await this.#keydb.smembers(ROUTE_SHAPE_INDEX_KEY);
+      const existingRouteKeys = await this.#keydb.smembers(
+        ROUTE_SHAPE_INDEX_KEY,
+      );
       for (const entry of existingRouteKeys) {
         if (activeRouteKeys.has(entry)) {
           continue;

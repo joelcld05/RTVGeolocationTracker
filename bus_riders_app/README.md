@@ -19,9 +19,10 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 3. Configure runtime endpoints (optional but recommended)
 
    ```bash
-   EXPO_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1
-   EXPO_PUBLIC_MQTT_BROKER_URL=wss://localhost:8084/mqtt
+   EXPO_PUBLIC_API_BASE_URL=http://192.168.1.155:8080/api/v1
+   EXPO_PUBLIC_MQTT_BROKER_URL=wss://192.168.1.155:8084/mqtt
    EXPO_PUBLIC_MQTT_PUBLISH_INTERVAL_MS=3000
+   EXPO_PUBLIC_WS_BASE_URL=ws://192.168.1.155:8081
    ```
 
 In the output, you'll find options to open the app in a
@@ -37,7 +38,8 @@ You can start developing by editing the files inside the **app** directory. This
 
 - Bus registration route selection is loaded from backend catalog endpoint `GET /api/v1/bus/routes`.
 - GPS publish cadence is throttled to a `2-5s` interval (default `3000ms`).
-- MQTT broker and API base URL can be configured via `EXPO_PUBLIC_*` vars or `app.json -> expo.extra`.
+- Live route updates in `Tracking` tab use WebSocket channel `route:{routeId}:{direction}` with JWT auth.
+- MQTT broker, API base URL, and WebSocket base URL can be configured via `EXPO_PUBLIC_*` vars or `app.json -> expo.extra`.
 
 ## Get a fresh project
 

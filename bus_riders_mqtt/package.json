@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
     "replay:arrival": "ts-node src/scripts/replayArrival.ts",
+    "replay:neighbors": "ts-node src/scripts/replayNeighbors.ts",
     "replay:offtrack": "ts-node src/scripts/replayOfftrack.ts",
     "replay:stale-cleanup": "ts-node src/scripts/replayStaleCleanup.ts",
     "replay:health": "ts-node src/scripts/replayHealthProbes.ts"

@@ -82,6 +82,7 @@ type RoutePayload = {
 type ChannelInfo =
   | { kind: "bus"; busId: string }
   | { kind: "route"; routeId: string; direction: string }
+  | { kind: "adminRoute"; routeId: string; direction: string }
   | { kind: "system"; name: "alerts" };
 
 const wsHost = process.env.WS_HOST ?? "0.0.0.0";
@@ -166,6 +167,8 @@ const idPattern = /^[A-Za-z0-9_-]+$/;
 const clients = new Map<WebSocket, WsClient>();
 const channelSubscriptions = new Map<string, Set<WebSocket>>();
 
+type AdminRouteScopes = Set<string>;
+
 function isValidId(value: string): boolean {
   return idPattern.test(value);
 }
@@ -203,6 +206,18 @@ function parseChannel(channel: string): ChannelInfo | null {
     return { kind: "route", routeId, direction: normalizedDirection };
   }
 
+  if (kind === "admin-route" && parts.length === 2) {
+    const [routeId, direction] = parts;
+    if (!routeId || !direction || !isValidId(routeId)) return null;
+    const normalizedDirection = direction.toUpperCase();
+    if (
+      !allowedDirections.has(normalizedDirection) ||
+      normalizedDirection !== direction
+    )
+      return null;
+    return { kind: "adminRoute", routeId, direction: normalizedDirection };
+  }
+
   if (kind === "system" && parts.length === 1 && parts[0] === "alerts") {
     return { kind: "system", name: "alerts" };
   }
@@ -232,6 +247,36 @@ function isAdmin(auth?: JwtPayload): boolean {
   }
 
   return false;
+}
+
+function parseAdminRouteScopes(auth?: JwtPayload): AdminRouteScopes | null {
+  if (!auth) return null;
+  const raw = auth["routeScopes"];
+  if (!Array.isArray(raw)) return null;
+
+  const parsed = new Set<string>();
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const [routeId, direction] = entry.split(":");
+    if (!routeId || !direction) continue;
+    const normalizedDirection = direction.toUpperCase();
+    if (!allowedDirections.has(normalizedDirection)) continue;
+    parsed.add(`${routeId}:${normalizedDirection}`);
+  }
+  return parsed;
+}
+
+function isAdminRouteAllowed(
+  auth: JwtPayload,
+  routeId: string,
+  direction: string,
+): boolean {
+  const scopes = parseAdminRouteScopes(auth);
+  if (scopes === null) {
+    // No explicit scope claim means full admin visibility.
+    return true;
+  }
+  return scopes.has(`${routeId}:${direction}`);
 }
 
 function authorizeSubscription(
@@ -264,6 +309,11 @@ function authorizeSubscription(
       authDirection === channel.direction &&
       allowedDirections.has(authDirection)
     );
+  }
+
+  if (channel.kind === "adminRoute") {
+    if (!isAdmin(client.auth)) return false;
+    return isAdminRouteAllowed(client.auth, channel.routeId, channel.direction);
   }
 
   if (channel.kind === "system") {
@@ -525,6 +575,65 @@ function buildRoutePayload(
   };
 }
 
+function buildRouteSnapshotPayload(
+  state: BusState,
+  routeLengthMeters: number | null,
+): RoutePayload {
+  const distanceMeters = routeLengthMeters
+    ? state.progress * routeLengthMeters
+    : null;
+
+  return {
+    busId: state.busId,
+    routeId: state.routeId,
+    direction: state.direction,
+    lat: state.lat,
+    lng: state.lng,
+    progress: state.progress,
+    distanceMeters,
+    deviationMeters: state.deviationMeters,
+    speed: state.speed,
+    isOffTrack: state.isOffTrack,
+    tripStatus: state.tripStatus,
+    arrivalTimestamp: state.arrivalTimestamp,
+    ahead: [],
+    behind: [],
+    timestamp: state.timestamp,
+  };
+}
+
+async function sendRouteSnapshotToClient(
+  client: WsClient,
+  channel: { routeId: string; direction: string },
+  channelName: string,
+): Promise<void> {
+  if (client.socket.readyState !== WebSocket.OPEN) return;
+
+  const routeKey = `route:${channel.routeId}:${channel.direction}`;
+  const busIds = await keydb.zrange(routeKey, 0, -1);
+  if (busIds.length === 0) return;
+
+  const routeLengthMeters = await getRouteLengthMeters(
+    channel.routeId,
+    channel.direction,
+  );
+
+  for (const busId of busIds) {
+    const state = await getBusState(busId);
+    if (!state) continue;
+    if (
+      state.routeId !== channel.routeId ||
+      state.direction !== channel.direction
+    )
+      continue;
+
+    sendJson(client.socket, {
+      channel: channelName,
+      data: buildRouteSnapshotPayload(state, routeLengthMeters),
+    });
+  }
+}
+
 async function handleBusEvent(busId: string): Promise<void> {
   const state = await getBusState(busId);
   if (!state) return;
@@ -554,6 +663,7 @@ async function handleBusEvent(busId: string): Promise<void> {
 
   broadcast(`bus:${busId}`, busPayload);
   broadcast(`route:${state.routeId}:${state.direction}`, routePayload);
+  broadcast(`admin-route:${state.routeId}:${state.direction}`, routePayload);
 }
 
 async function subscribeToEvents(): Promise<void> {
@@ -606,7 +716,7 @@ wss.on("connection", (socket, request) => {
 
   const url = new URL(
     request.url ?? "/",
-    `http://${request.headers.host ?? "localhost"}`,
+    `http://${request.headers.host ?? "192.168.1.155"}`,
   );
   const token = url.searchParams.get("token");
 
@@ -679,6 +789,18 @@ wss.on("connection", (socket, request) => {
           action: "subscribe",
           channel: channelValue,
         });
+        if (channelInfo.kind === "route" || channelInfo.kind === "adminRoute") {
+          void sendRouteSnapshotToClient(
+            client,
+            channelInfo,
+            channelValue,
+          ).catch((error) => {
+            console.warn("[snapshot] failed to send route snapshot", {
+              channel: channelValue,
+              error,
+            });
+          });
+        }
       } else {
         removeSubscription(client, channelValue);
         sendJson(socket, {

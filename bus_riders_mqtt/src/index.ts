@@ -50,7 +50,7 @@ const mqttReconnectPeriodMs = Number.parseInt(
   10,
 );
 
-const keydbUrl = process.env.KEYDB_URL ?? "redis://localhost:6379";
+const keydbUrl = process.env.KEYDB_URL ?? "redis://192.168.1.155:6379";
 const keydbClientName = process.env.KEYDB_CLIENT_NAME ?? "bus_riders_mqtt";
 const messageHistoryLimit = Number.parseInt(
   process.env.KEYDB_MESSAGE_HISTORY ?? "200",
@@ -147,7 +147,8 @@ function buildServiceJwtToken(): string | null {
   return jwt.sign(payload, mqttJwtSecret, options);
 }
 
-const resolvedMqttPassword = mqttPassword || buildServiceJwtToken() || undefined;
+const resolvedMqttPassword =
+  mqttPassword || buildServiceJwtToken() || undefined;
 
 const keydb = new Redis(keydbUrl, {
   maxRetriesPerRequest: null,
@@ -236,7 +237,8 @@ const staleBusSweeper = createStaleBusSweeper({
       ? staleBusSweepBatchSize
       : 200,
   seedScanCount:
-    Number.isFinite(staleBusSweepSeedScanCount) && staleBusSweepSeedScanCount > 0
+    Number.isFinite(staleBusSweepSeedScanCount) &&
+    staleBusSweepSeedScanCount > 0
       ? staleBusSweepSeedScanCount
       : 500,
   seedFromScan: staleBusSweepSeedFromScan,
@@ -432,7 +434,7 @@ const healthServer = http.createServer((req, res) => {
     return;
   }
 
-  const url = new URL(req.url, "http://localhost");
+  const url = new URL(req.url, "http://192.168.1.155");
   if (url.pathname === "/health") {
     void (async () => {
       const keydbStatus = await checkKeydbPing();
@@ -528,5 +530,7 @@ void staleBusSweeper.start().catch((error) => {
 });
 
 healthServer.listen(mqttHealthPort, mqttHealthHost, () => {
-  console.log(`[health] server listening on ${mqttHealthHost}:${mqttHealthPort}`);
+  console.log(
+    `[health] server listening on ${mqttHealthHost}:${mqttHealthPort}`,
+  );
 });
