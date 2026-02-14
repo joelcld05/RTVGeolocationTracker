@@ -259,13 +259,13 @@ Audit status updated from current codebase on `2026-02-14`:
 
 - [ ] Functional tests:
   - [ ] GPS update -> projection -> ordering -> neighbors -> websocket broadcast.
-  - [ ] Bus is flagged `isOffTrack=true` when route deviation exceeds configured threshold.
-  - [ ] Bus returns to `isOffTrack=false` only after crossing recovery threshold.
+  - [x] Bus is flagged `isOffTrack=true` when route deviation exceeds configured threshold.
+  - [x] Bus returns to `isOffTrack=false` only after crossing recovery threshold.
   - [x] Bus is flagged `tripStatus=ARRIVED` only after entering end polygon and meeting dwell/gate rules.
   - [x] Bus is not flagged `ARRIVED` by brief GPS spike into polygon.
   - [x] Bus resets from `ARRIVED` to `IN_ROUTE` on new trip/restart conditions.
   - [ ] Invalid/stale GPS messages are rejected and logged with reason code.
-  - [ ] Stale bus entries are removed from route ordering after TTL/sweep.
+  - [x] Stale bus entries are removed from route ordering after TTL/sweep.
   - [ ] Route admin sees all active buses for an assigned route update live on the backoffice map.
 - [ ] Load test baseline:
   - [ ] target `1000+ buses/route` with acceptable latency.
@@ -279,10 +279,10 @@ Audit status updated from current codebase on `2026-02-14`:
 - [ ] Add automated integration tests for:
   - [ ] topic parsing + payload validation
   - [ ] projection + neighbor calculations
-  - [ ] off-track threshold + recovery behavior
+  - [x] off-track threshold + recovery behavior
   - [ ] arrival polygon + dwell/hysteresis behavior
-  - [ ] stale cleanup job behavior
-  - [ ] mqtt health/readiness endpoints
+  - [x] stale cleanup job behavior
+  - [x] mqtt health/readiness endpoints
   - [ ] websocket auth and route authorization
 
 ### Step 4 Definition (Execution Phase): Validation and Go/No-Go Gate
@@ -293,13 +293,13 @@ Audit status updated from current codebase on `2026-02-14`:
   - [x] Confirm timestamp format is Unix epoch milliseconds across publish/store/broadcast.
 - [ ] Functional validation:
   - [ ] Simulate normal movement for multiple buses in same route; verify all appear and update live in admin map.
-  - [ ] Simulate off-track deviation and recovery; verify `isOffTrack` transition behavior and logs.
+  - [x] Simulate off-track deviation and recovery; verify `isOffTrack` transition behavior and logs.
   - [ ] Simulate end-of-route arrival; verify `tripStatus=ARRIVED` only after polygon + dwell conditions.
-  - [ ] Simulate stale bus; verify stale cleanup removes route ordering artifacts.
+  - [x] Simulate stale bus; verify stale cleanup removes route ordering artifacts.
 - [ ] Reliability validation:
   - [ ] Send invalid/stale payloads; verify reject reason metrics and structured logs.
   - [ ] Verify ingestion continues processing after malformed messages (no consumer crash).
-  - [ ] Verify MQTT `/health` and `/ready` endpoint behavior under healthy and degraded dependencies.
+  - [x] Verify MQTT `/health` and `/ready` endpoint behavior under healthy and degraded dependencies.
 - [ ] Security and access validation:
   - [ ] Verify route admin cannot subscribe to unassigned routes/directions.
   - [ ] Verify unauthorized users cannot access backoffice route channels.

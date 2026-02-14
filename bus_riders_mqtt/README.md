@@ -20,7 +20,12 @@ Replay arrival/off-track transitions with synthetic noisy GPS:
 
 ```bash
 npm run replay:arrival
+npm run replay:offtrack
+npm run replay:stale-cleanup
+npm run replay:health
 ```
+
+`replay:health` requires Docker to run an ephemeral MQTT broker for the healthy scenario.
 
 If you run outside Docker, override KeyDB host:
 
