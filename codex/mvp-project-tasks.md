@@ -7,7 +7,7 @@ This checklist is based on:
 - `codex/websocket-service-role.md`
 - `codex/neighbor-calculation.md`
 
-Audit status updated from current codebase on `2026-02-13`:
+Audit status updated from current codebase on `2026-02-14`:
 - App: `bus_riders_app`
 - Backend: `bus_riders_backend`
 - MQTT: `bus_riders_mqtt`
@@ -48,8 +48,8 @@ Audit status updated from current codebase on `2026-02-13`:
   - [x] `behind[]`
   - [x] `timestamp` (Unix epoch milliseconds)
   - [x] `isOffTrack` (boolean)
-  - [ ] `tripStatus` (`IN_ROUTE | ARRIVED`)
-  - [ ] `arrivalTimestamp` (Unix epoch milliseconds, nullable)
+  - [x] `tripStatus` (`IN_ROUTE | ARRIVED`)
+  - [x] `arrivalTimestamp` (Unix epoch milliseconds, nullable)
 - [ ] Publish these contracts in one shared doc for app + backend teams.
 - [ ] Align contract naming across docs and services:
   - [x] Route ordering key canonicalized to `route:{routeId}:{direction}` (no `:buses` suffix).
@@ -75,9 +75,9 @@ Audit status updated from current codebase on `2026-02-13`:
 - [ ] Store geometry keys:
   - [ ] `route:shape:{routeId}:FORWARD`
   - [ ] `route:shape:{routeId}:BACKWARD`
-- [ ] Add validation for minimum geometry quality (enough points, valid lat/lng).
+- [x] Add validation for minimum geometry quality (enough points, valid lat/lng).
 - [ ] Define end-of-route arrival polygon per route+direction.
-  - [ ] Store key `route:endzone:{routeId}:{direction}` as polygon coordinates.
+  - [x] Store key `route:endzone:{routeId}:{direction}` as polygon coordinates.
   - [ ] Validate polygon quality (>= 3 points, valid lat/lng, non-degenerate area).
   - [ ] Document polygon source (manual draw or derived from route terminal).
 - [x] Implement backend -> KeyDB route sync:
@@ -99,32 +99,32 @@ Audit status updated from current codebase on `2026-02-13`:
 - [x] Persist bus ordering in KeyDB.
   - [x] Use contract key `route:{routeId}:{direction}` (no `:buses` suffix).
 - [x] Persist bus telemetry snapshot (optional MVP but recommended for client details).
-- [ ] Handle invalid/out-of-route messages gracefully (drop + log).
-  - [ ] Classify reject reasons (`invalid_topic`, `invalid_payload`, `stale_timestamp`, `projection_error`, `missing_route_shape`).
-  - [ ] Log structured reject events with `busId`, `routeId`, `direction`, and reason code.
-  - [ ] Ensure single-message failures never crash the ingestion loop.
-- [ ] Add explicit out-of-route deviation threshold + event logging.
-  - [ ] Add config `OFFTRACK_DISTANCE_THRESHOLD_METERS` (default `50`).
-  - [ ] Add config `OFFTRACK_RECOVERY_THRESHOLD_METERS` (default `35`) to avoid off-track flapping.
-  - [ ] Emit transition logs only (`on_track -> off_track`, `off_track -> on_track`).
-- [ ] Determine and persist `isOffTrack` per bus using route distance threshold, and emit status in real-time updates.
-  - [ ] Extend projection output to include route deviation in meters.
-  - [ ] Persist bus fields: `isOffTrack`, `offTrackSinceTs`, `deviationMeters`.
-  - [ ] Include `isOffTrack` in both bus and route realtime payloads.
-- [ ] Detect end-of-route arrival using terminal polygon and update bus status.
-  - [ ] Implement point-in-polygon check against `route:endzone:{routeId}:{direction}`.
-  - [ ] Add arrival gating (recommended): `progress >= 0.97` AND inside polygon.
-  - [ ] Add anti-flapping hysteresis (recommended): require `ARRIVAL_DWELL_MS` before `ARRIVED`.
-  - [ ] Add optional speed guard (recommended): `speed <= ARRIVAL_MAX_SPEED_KMH` when marking arrival.
-  - [ ] Persist status fields in bus state: `tripStatus`, `arrivalTimestamp`, `arrivalZoneHitCount`.
-  - [ ] Emit status transition logs/events (`IN_ROUTE -> ARRIVED`, `ARRIVED -> IN_ROUTE`).
-- [ ] Reset arrival status when a new trip starts.
-  - [ ] Clear `ARRIVED` when bus exits end-zone for configured duration.
-  - [ ] Clear `ARRIVED` when progress indicates restart near route origin (new cycle).
+- [x] Handle invalid/out-of-route messages gracefully (drop + log).
+  - [x] Classify reject reasons (`invalid_topic`, `invalid_payload`, `stale_timestamp`, `projection_error`, `missing_route_shape`).
+  - [x] Log structured reject events with `busId`, `routeId`, `direction`, and reason code.
+  - [x] Ensure single-message failures never crash the ingestion loop.
+- [x] Add explicit out-of-route deviation threshold + event logging.
+  - [x] Add config `OFFTRACK_DISTANCE_THRESHOLD_METERS` (default `50`).
+  - [x] Add config `OFFTRACK_RECOVERY_THRESHOLD_METERS` (default `35`) to avoid off-track flapping.
+  - [x] Emit transition logs only (`on_track -> off_track`, `off_track -> on_track`).
+- [x] Determine and persist `isOffTrack` per bus using route distance threshold, and emit status in real-time updates.
+  - [x] Extend projection output to include route deviation in meters.
+  - [x] Persist bus fields: `isOffTrack`, `offTrackSinceTs`, `deviationMeters`.
+  - [x] Include `isOffTrack` in both bus and route realtime payloads.
+- [x] Detect end-of-route arrival using terminal polygon and update bus status.
+  - [x] Implement point-in-polygon check against `route:endzone:{routeId}:{direction}`.
+  - [x] Add arrival gating (recommended): `progress >= 0.97` AND inside polygon.
+  - [x] Add anti-flapping hysteresis (recommended): require `ARRIVAL_DWELL_MS` before `ARRIVED`.
+  - [x] Add optional speed guard (recommended): `speed <= ARRIVAL_MAX_SPEED_KMH` when marking arrival.
+  - [x] Persist status fields in bus state: `tripStatus`, `arrivalTimestamp`, `arrivalZoneHitCount`.
+  - [x] Emit status transition logs/events (`IN_ROUTE -> ARRIVED`, `ARRIVED -> IN_ROUTE`).
+- [x] Reset arrival status when a new trip starts.
+  - [x] Clear `ARRIVED` when bus exits end-zone for configured duration.
+  - [x] Clear `ARRIVED` when progress indicates restart near route origin (new cycle).
 - [ ] Add stale bus cleanup in route sorted sets when bus state expires.
   - [ ] Remove stale bus IDs from `route:{routeId}:{direction}` when `bus:{busId}` key is expired/missing.
   - [ ] Add periodic sweep job with configurable interval (`STALE_BUS_SWEEP_MS`).
-  - [ ] Remove bus from previous route-direction key when route assignment changes.
+  - [x] Remove bus from previous route-direction key when route assignment changes.
 - [ ] Add MQTT service health/readiness endpoint.
   - [ ] Add `/health` endpoint with MQTT connection + KeyDB connectivity status.
   - [ ] Add `/ready` endpoint that requires active MQTT subscription and KeyDB write/read check.
@@ -148,8 +148,8 @@ Audit status updated from current codebase on `2026-02-13`:
 - [x] Align route-channel payload with MVP contract:
   - [x] Include `neighbors` and neighbor distance data.
   - [x] Include `timestamp`.
-- [ ] Include `isOffTrack` in route-channel payload.
-- [ ] Include `tripStatus` and `arrivalTimestamp` in route-channel payload.
+- [x] Include `isOffTrack` in route-channel payload.
+- [x] Include `tripStatus` and `arrivalTimestamp` in route-channel payload.
 - [ ] Add WebSocket service-side rate limiting / max message size protections.
 
 ## 8. Integrate Bus Mobile App (Publisher)
@@ -261,9 +261,9 @@ Audit status updated from current codebase on `2026-02-13`:
   - [ ] GPS update -> projection -> ordering -> neighbors -> websocket broadcast.
   - [ ] Bus is flagged `isOffTrack=true` when route deviation exceeds configured threshold.
   - [ ] Bus returns to `isOffTrack=false` only after crossing recovery threshold.
-  - [ ] Bus is flagged `tripStatus=ARRIVED` only after entering end polygon and meeting dwell/gate rules.
-  - [ ] Bus is not flagged `ARRIVED` by brief GPS spike into polygon.
-  - [ ] Bus resets from `ARRIVED` to `IN_ROUTE` on new trip/restart conditions.
+  - [x] Bus is flagged `tripStatus=ARRIVED` only after entering end polygon and meeting dwell/gate rules.
+  - [x] Bus is not flagged `ARRIVED` by brief GPS spike into polygon.
+  - [x] Bus resets from `ARRIVED` to `IN_ROUTE` on new trip/restart conditions.
   - [ ] Invalid/stale GPS messages are rejected and logged with reason code.
   - [ ] Stale bus entries are removed from route ordering after TTL/sweep.
   - [ ] Route admin sees all active buses for an assigned route update live on the backoffice map.
@@ -289,8 +289,8 @@ Audit status updated from current codebase on `2026-02-13`:
 
 - [ ] Step 4 goal: verify off-track/reliability and admin backoffice behavior before launch sequence.
 - [ ] Contract conformance checks:
-  - [ ] Confirm route-channel payload includes `routeId`, `direction`, `lat`, `lng`, `timestamp`, `isOffTrack`, `tripStatus`, `arrivalTimestamp`.
-  - [ ] Confirm timestamp format is Unix epoch milliseconds across publish/store/broadcast.
+  - [x] Confirm route-channel payload includes `routeId`, `direction`, `lat`, `lng`, `timestamp`, `isOffTrack`, `tripStatus`, `arrivalTimestamp`.
+  - [x] Confirm timestamp format is Unix epoch milliseconds across publish/store/broadcast.
 - [ ] Functional validation:
   - [ ] Simulate normal movement for multiple buses in same route; verify all appear and update live in admin map.
   - [ ] Simulate off-track deviation and recovery; verify `isOffTrack` transition behavior and logs.
@@ -311,13 +311,13 @@ Audit status updated from current codebase on `2026-02-13`:
 
 - [ ] Step 5 goal: accurately mark a bus as `ARRIVED` when it reaches route terminal zone.
 - [ ] Recommended detection strategy:
-  - [ ] Geofence: polygon per `routeId+direction` (`route:endzone:{routeId}:{direction}`).
-  - [ ] Gate: require `progress >= 0.97` to prevent early-terminal false positives.
-  - [ ] Stability: require dwell time inside polygon (`ARRIVAL_DWELL_MS`, e.g. `10000`).
-  - [ ] Optional speed gate: only mark arrival when `speed <= ARRIVAL_MAX_SPEED_KMH` (e.g. `8`).
+  - [x] Geofence: polygon per `routeId+direction` (`route:endzone:{routeId}:{direction}`).
+  - [x] Gate: require `progress >= 0.97` to prevent early-terminal false positives.
+  - [x] Stability: require dwell time inside polygon (`ARRIVAL_DWELL_MS`, e.g. `10000`).
+  - [x] Optional speed gate: only mark arrival when `speed <= ARRIVAL_MAX_SPEED_KMH` (e.g. `8`).
 - [ ] State and contract updates:
-  - [ ] Persist `tripStatus` and `arrivalTimestamp` in `bus:{busId}`.
-  - [ ] Broadcast `tripStatus` and `arrivalTimestamp` in route updates.
+  - [x] Persist `tripStatus` and `arrivalTimestamp` in `bus:{busId}`.
+  - [x] Broadcast `tripStatus` and `arrivalTimestamp` in route updates.
   - [ ] Show `ARRIVED` status in admin backoffice map/list and bus details.
 - [ ] Step 5 exit criteria:
   - [ ] Arrival transitions are deterministic across repeated runs and noisy GPS samples.

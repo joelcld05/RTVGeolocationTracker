@@ -6,6 +6,11 @@ import type {
 } from "../types";
 import { parseGpsPayload, validateGps } from "./gps";
 
+type ValidationRules = {
+  maxAgeMs?: number;
+  maxFutureDriftMs?: number;
+};
+
 type GpsHandlerOptions = {
   projectToRoute: (
     routeId: string,
@@ -20,6 +25,7 @@ type GpsHandlerOptions = {
     meta: MessageMeta,
   ) => Promise<void>;
   onEvent: (event: NormalizedEvent) => void | Promise<void>;
+  validationRules?: ValidationRules;
 };
 
 export function createGpsHandler(options: GpsHandlerOptions) {
@@ -31,7 +37,7 @@ export function createGpsHandler(options: GpsHandlerOptions) {
   ): Promise<void> {
     const gps = parseGpsPayload(payload);
 
-    validateGps(gps);
+    validateGps(gps, options.validationRules);
 
     const projection = await options.projectToRoute(
       topic.routeId,

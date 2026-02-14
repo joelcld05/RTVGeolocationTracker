@@ -61,6 +61,9 @@ Direction must be `FORWARD` or `BACKWARD`. Wildcards are rejected.
 
 MQTT -> GPS ingestion -> Normalized event -> Realtime processor -> KeyDB -> WebSocket pub/sub
 
+Rejected messages are dropped and logged with reason codes:
+`invalid_topic`, `invalid_payload`, `stale_timestamp`, `projection_error`, `missing_route_shape`.
+
 ## Environment
 
 - `MQTT_HOST`: Broker host (fallback for `MQTT_BROKER_URL`)
@@ -86,6 +89,8 @@ MQTT -> GPS ingestion -> Normalized event -> Realtime processor -> KeyDB -> WebS
 - `ARRIVAL_MAX_SPEED_KMH`: Maximum speed to allow arrival transition (default `8`)
 - `ARRIVAL_RESET_PROGRESS_THRESHOLD`: Progress threshold to reset `ARRIVED` for a new cycle (default `0.2`)
 - `ARRIVAL_EXIT_GRACE_MS`: Grace period outside arrival gate before resetting to `IN_ROUTE` (default `10000`)
+- `STALE_TIMESTAMP_MAX_AGE_MS`: Reject GPS samples older than this many ms (default `30000`)
+- `STALE_TIMESTAMP_MAX_FUTURE_DRIFT_MS`: Reject GPS samples too far in the future (default `5000`)
 
 ## Route Geometry (optional)
 
@@ -101,7 +106,7 @@ or:
 [{"lat": 8.9824, "lng": -79.5199}, {"lat": 8.9830, "lng": -79.5203}]
 ```
 
-When present, the service map-matches GPS updates to compute `progress` (0-1). If missing, progress defaults to `0`.
+When present, the service map-matches GPS updates to compute `progress` (0-1). If missing, the GPS sample is rejected with `missing_route_shape`.
 If you store `route:length:{routeId}:{direction}` (meters), neighbor distance/ETA estimates use that value when no shape exists.
 
 If `route:endzone:{routeId}:{direction}` is present, arrival detection uses it as a terminal polygon geofence.

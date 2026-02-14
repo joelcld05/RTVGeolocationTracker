@@ -252,7 +252,8 @@ class RouteStateSyncService {
         pipeline.set(lengthKey, String(lengthMeters));
 
         const explicitEndzone = getEndzonePolygonPoints(
-          (route as any)?.end_point?.coordinates,
+          (route as any)?.end_zone?.coordinates ??
+            (route as any)?.end_point?.coordinates,
         );
         if (explicitEndzone.length >= 3) {
           pipeline.set(endzoneKey, JSON.stringify(explicitEndzone));

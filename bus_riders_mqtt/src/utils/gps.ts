@@ -1,5 +1,12 @@
 import type { GpsPayload } from "../types";
 import { isFiniteNumber } from "./numbers";
+import { StaleTimestampError } from "./rejects";
+
+type GpsValidationOptions = {
+  nowMs?: number;
+  maxAgeMs?: number;
+  maxFutureDriftMs?: number;
+};
 
 export function parseGpsPayload(payloadBuffer: Buffer): GpsPayload {
   const payloadText = payloadBuffer.toString("utf8");
@@ -14,7 +21,10 @@ export function parseGpsPayload(payloadBuffer: Buffer): GpsPayload {
   };
 }
 
-export function validateGps(gps: GpsPayload): void {
+export function validateGps(
+  gps: GpsPayload,
+  options?: GpsValidationOptions,
+): void {
   if (!isFiniteNumber(gps.lat) || gps.lat < -90 || gps.lat > 90) {
     throw new Error("Invalid latitude");
   }
@@ -35,5 +45,17 @@ export function validateGps(gps: GpsPayload): void {
     if (!isFiniteNumber(gps.heading) || gps.heading < 0 || gps.heading > 360) {
       throw new Error("Invalid heading");
     }
+  }
+
+  const nowMs = options?.nowMs ?? Date.now();
+  const maxAgeMs = options?.maxAgeMs ?? 0;
+  const maxFutureDriftMs = options?.maxFutureDriftMs ?? 0;
+
+  if (maxAgeMs > 0 && gps.timestamp < nowMs - maxAgeMs) {
+    throw new StaleTimestampError("GPS timestamp is too old");
+  }
+
+  if (maxFutureDriftMs >= 0 && gps.timestamp > nowMs + maxFutureDriftMs) {
+    throw new StaleTimestampError("GPS timestamp is too far in the future");
   }
 }

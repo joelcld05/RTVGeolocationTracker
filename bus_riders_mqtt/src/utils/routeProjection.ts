@@ -1,6 +1,7 @@
 import type Redis from "ioredis";
 import type { RouteProjectionResult, RouteShape } from "../types";
 import { isFiniteNumber } from "./numbers";
+import { MissingRouteShapeError, ProjectionError } from "./rejects";
 
 type RouteProjectionService = {
   projectToRoute: (
@@ -129,8 +130,12 @@ export function createRouteProjectionService(
     lng: number,
   ): Promise<RouteProjectionResult> {
     const shape = await loadRouteShape(routeId, direction);
-    if (!shape || shape.totalLengthMeters <= 0) {
-      return { progress: 0, deviationMeters: null };
+    if (!shape) {
+      throw new MissingRouteShapeError(routeId, direction);
+    }
+
+    if (shape.totalLengthMeters <= 0) {
+      throw new ProjectionError("Route shape has invalid total length");
     }
 
     let closestDistance = Number.POSITIVE_INFINITY;
@@ -172,7 +177,7 @@ export function createRouteProjectionService(
     }
 
     if (!Number.isFinite(closestProgress)) {
-      return { progress: 0, deviationMeters: null };
+      throw new ProjectionError("Projection produced non-finite progress");
     }
 
     return {

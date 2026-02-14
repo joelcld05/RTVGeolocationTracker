@@ -297,6 +297,33 @@ export function createStateService(options: StateServiceOptions): StateService {
       arrivalTimestamp,
     };
 
+    if (previousIsOffTrack !== enrichedEvent.isOffTrack) {
+      console.log("[state] offtrack transition", {
+        busId: event.busId,
+        routeId: event.routeId,
+        direction: event.direction,
+        from: previousIsOffTrack ? "off_track" : "on_track",
+        to: enrichedEvent.isOffTrack ? "off_track" : "on_track",
+        deviationMeters: enrichedEvent.deviationMeters,
+        timestamp: event.timestamp,
+      });
+    }
+
+    if (previousTripStatus !== enrichedEvent.tripStatus) {
+      console.log("[state] trip status transition", {
+        busId: event.busId,
+        routeId: event.routeId,
+        direction: event.direction,
+        from: previousTripStatus,
+        to: enrichedEvent.tripStatus,
+        progress: enrichedEvent.progress,
+        insideEndzone,
+        passesArrivalGate,
+        arrivalTimestamp: enrichedEvent.arrivalTimestamp,
+        timestamp: event.timestamp,
+      });
+    }
+
     const pipeline = options.keydb.multi();
     if (hasRouteChanged && previousRouteId && previousDirection) {
       pipeline.zrem(`route:${previousRouteId}:${previousDirection}`, event.busId);

@@ -11,6 +11,7 @@ import { createStateService } from "./utils/stateService";
 import { createGpsHandler } from "./utils/gpsHandler";
 import { parseGpsTopic } from "./utils/topic";
 import { toBuffer } from "./utils/buffer";
+import { classifyRejectReason, logRejectedMessage } from "./utils/rejects";
 
 dotenv.config();
 
@@ -83,6 +84,14 @@ const arrivalResetProgressThreshold = Number.parseFloat(
 );
 const arrivalExitGraceMs = Number.parseInt(
   process.env.ARRIVAL_EXIT_GRACE_MS ?? "10000",
+  10,
+);
+const staleTimestampMaxAgeMs = Number.parseInt(
+  process.env.STALE_TIMESTAMP_MAX_AGE_MS ?? "30000",
+  10,
+);
+const staleTimestampMaxFutureDriftMs = Number.parseInt(
+  process.env.STALE_TIMESTAMP_MAX_FUTURE_DRIFT_MS ?? "5000",
   10,
 );
 const resolvedMqttUsername = mqttUsername || mqttClientId;
@@ -193,6 +202,17 @@ const handleGpsMessage = createGpsHandler({
   onEvent: (event) => {
     eventBus.emit("normalized", event);
   },
+  validationRules: {
+    maxAgeMs:
+      Number.isFinite(staleTimestampMaxAgeMs) && staleTimestampMaxAgeMs > 0
+        ? staleTimestampMaxAgeMs
+        : 0,
+    maxFutureDriftMs:
+      Number.isFinite(staleTimestampMaxFutureDriftMs) &&
+      staleTimestampMaxFutureDriftMs >= 0
+        ? staleTimestampMaxFutureDriftMs
+        : 5000,
+  },
 });
 
 eventBus.on("normalized", (event: NormalizedEvent) => {
@@ -245,7 +265,10 @@ mqttClient.on("message", (topic, payload, packet) => {
     prefix: gpsTopicPrefix,
   });
   if (!parsedTopic) {
-    console.warn("[mqtt] ignored message with invalid topic", { topic });
+    logRejectedMessage("invalid_topic", {
+      topic,
+      message: "Topic must match gps/{routeId}/{direction}/{busId}",
+    });
     return;
   }
 
@@ -258,7 +281,14 @@ mqttClient.on("message", (topic, payload, packet) => {
 
   void handleGpsMessage(parsedTopic, topic, payloadBuffer, meta).catch(
     (error) => {
-      console.warn("[mqtt] failed to handle gps message", { topic, error });
+      const reason = classifyRejectReason(error);
+      logRejectedMessage(reason, {
+        busId: parsedTopic.busId,
+        routeId: parsedTopic.routeId,
+        direction: parsedTopic.direction,
+        topic,
+        message: error instanceof Error ? error.message : String(error),
+      });
     },
   );
 });

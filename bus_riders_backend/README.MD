@@ -146,12 +146,20 @@ The project uses Jest for testing. Run tests with:
 npm test
 ```
 
+Targeted route geometry model test:
+
+```bash
+npm run test:routes-model
+```
+
 ## 📦 Scripts
 
 - `npm start`: Start the production server
 - `npm run dev`: Start development server with hot reload
 - `npm run build`: Build TypeScript files
 - `npm run test`: Run tests
+- `npm run test:routes-model`: Validate `bu_routes` geometry/end-zone schema rules
+- `npm run verify:route-sync`: Seed a route and verify `route:endzone:{routeId}:{direction}` is written in KeyDB
 - `npm run lint`: Run ESLint
 - `npm run format`: Format code with Prettier
 

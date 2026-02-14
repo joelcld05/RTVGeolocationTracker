@@ -5,11 +5,13 @@
   "main": "./src/app.ts",
   "scripts": {
     "test": "dotenv -e .env.test jest --runInBand",
+    "test:routes-model": "dotenv -e .env.test jest --runInBand --runTestsByPath src/test/routes.model.test.ts",
     "start": "node ./dist/app.js",
     "dev": "dotenv -e .env.dev nodemon",
     "local": "dotenv -e .env.local nodemon",
     "prod": "dotenv -e .env.prod nodemon",
     "build": "tsc --build && tsc-alias",
+    "verify:route-sync": "ts-node src/scripts/verifyRouteEndzoneSync.ts",
     "format": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .ts,.tsx --fix"
   },

@@ -8,6 +8,7 @@ import kycRoutes from "@/controllers/UserDataController";
 
 import User from "@/controllers/UserController";
 import Bus from "@/controllers/BusController";
+import Route from "@/controllers/RouteController";
 import { BAD_REQUEST } from "@/utils";
 import { engine } from "express-handlebars";
 import rateLimit from "express-rate-limit";
@@ -56,6 +57,7 @@ app.use(defaultrout, Configuration.routes());
 app.use(defaultrout, kycRoutes.routes());
 app.use(defaultrout, User.routes());
 app.use(defaultrout, Bus.routes());
+app.use(defaultrout, Route.routes());
 app.use(defaultrout, Auth.routes());
 app.use(express.static("public"));
 
